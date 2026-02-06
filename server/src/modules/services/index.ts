@@ -1,3 +1,1 @@
-// Service module
-// Will contain: entities, services, controllers, DTOs
-export {};
+export * from './entities/service.entity';

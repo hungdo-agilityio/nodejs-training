@@ -1,3 +1,2 @@
-// Booking module
-// Will contain: entities, services, controllers, DTOs
-export {};
+export * from './entities/booking.entity';
+export * from './entities/booking-service.entity';

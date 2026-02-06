@@ -7,7 +7,7 @@
     "dev": "nodemon --exec \"node --env-file=.env -r tsx/cjs src/server.ts\"",
     "build": "tsc",
     "start": "node --env-file=.env dist/server.js",
-    "typeorm": "typeorm-ts-node-commonjs",
+    "typeorm": "node -r tsconfig-paths/register -r ts-node/register ./node_modules/typeorm/cli.js -d src/shared/database/data-source.ts",
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
@@ -40,7 +40,10 @@
     "typeorm": "^0.3.28"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "sqlite3",
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -59,6 +62,7 @@
     "prettier": "^3.8.1",
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
