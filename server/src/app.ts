@@ -3,6 +3,7 @@ import cors from 'cors';
 import { ILogger } from '@shared/types';
 import { errorHandler } from '@shared/middleware';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AppDependencies {
   // Controllers will be added here as they're implemented
 }

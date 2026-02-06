@@ -6,6 +6,7 @@ export interface ILogger {
   info(message: string): void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Default generic allows flexible API response typing when specific type is not needed
 export interface ApiResponse<T = any> {
   data?: T;
   error?: {

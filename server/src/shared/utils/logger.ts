@@ -1,5 +1,7 @@
 import { ILogger } from '@shared/types';
 
+// ConsoleLogger intentionally uses console.log/info for its logging implementation
+/* eslint-disable no-console */
 export class ConsoleLogger implements ILogger {
   log(message: string): void {
     console.log(`[LOG] ${new Date().toISOString()} - ${message}`);

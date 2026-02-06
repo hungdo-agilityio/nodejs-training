@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { Application } from 'express';
 import { DataSource } from 'typeorm';
-import { container, TOKENS, ServiceLifetime } from '@shared/container';
+import { container, TOKENS } from '@shared/container';
 import { AppDataSource } from '@shared/database';
 import { createApp } from './app';
 import { ConsoleLogger, ILogger } from '@shared/utils';

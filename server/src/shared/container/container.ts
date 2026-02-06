@@ -13,8 +13,8 @@ interface ServiceRegistration<T> {
 }
 
 export class Container {
-  private services = new Map<string, ServiceRegistration<any>>();
-  private scopedInstances = new Map<string, any>();
+  private services = new Map<string, ServiceRegistration<unknown>>();
+  private scopedInstances = new Map<string, unknown>();
 
   register<T>(
     token: string,
@@ -44,23 +44,26 @@ export class Container {
         if (!registration.instance) {
           registration.instance = registration.factory(this);
         }
-        return registration.instance;
+
+        return registration.instance as T;
 
       case ServiceLifetime.SCOPED:
         if (!this.scopedInstances.has(token)) {
           this.scopedInstances.set(token, registration.factory(this));
         }
-        return this.scopedInstances.get(token);
+
+        return this.scopedInstances.get(token) as T;
 
       case ServiceLifetime.TRANSIENT:
       default:
-        return registration.factory(this);
+        return registration.factory(this) as T;
     }
   }
 
   createScope(): Container {
     const scopedContainer = new Container();
     scopedContainer.services = new Map(this.services);
+
     return scopedContainer;
   }
 
