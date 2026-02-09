@@ -2,19 +2,45 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
+const isStaffRoute = createRouteMatcher(['/staff(.*)']);
+const isUserRoute = createRouteMatcher(['/dashboard(.*)']);
+
+type UserRole = 'USER' | 'STAFF' | 'ADMIN';
+
+const getRedirectByRole = (role: UserRole): string => {
+  switch (role) {
+    case 'STAFF':
+    case 'ADMIN':
+      return '/staff';
+    default:
+      return '/dashboard';
+  }
+};
 
 export default clerkMiddleware(async (auth, request) => {
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
   const { pathname } = request.nextUrl;
 
-  // Redirect signed-in users from home to dashboard
+  const role = (sessionClaims?.metadata as { role?: UserRole })?.role ?? 'USER';
+
+  // Redirect signed-in users from home based on role
   if (userId && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL(getRedirectByRole(role), request.url));
   }
 
   // Redirect signed-out users from home to sign-in
   if (!userId && pathname === '/') {
     return NextResponse.redirect(new URL('/sign-in', request.url));
+  }
+
+  // Prevent regular users from accessing staff routes
+  if (userId && isStaffRoute(request) && role === 'USER') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // Redirect staff/admin from user dashboard to staff dashboard
+  if (userId && isUserRoute(request) && (role === 'STAFF' || role === 'ADMIN')) {
+    return NextResponse.redirect(new URL('/staff', request.url));
   }
 
   // Protect non-public routes

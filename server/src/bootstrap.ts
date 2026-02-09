@@ -5,6 +5,8 @@ import { container, TOKENS } from '@shared/container';
 import { AppDataSource } from '@shared/database';
 import { createApp } from './app';
 import { ConsoleLogger, ILogger } from '@shared/utils';
+import { UserRepository, UserService, UserController } from '@modules/users';
+import { ClerkWebhookHandler } from '@modules/auth';
 
 export interface BootstrapResult {
   app: Application;
@@ -12,29 +14,37 @@ export interface BootstrapResult {
   logger: ILogger;
 }
 
+interface RegisteredDependencies {
+  clerkWebhookHandler: ClerkWebhookHandler;
+  userController: UserController;
+  userService: UserService;
+}
+
 const registerDependencies = (
   dataSource: DataSource,
   logger: ILogger
-): void => {
+): RegisteredDependencies => {
   // Register infrastructure (singletons)
   container.registerValue(TOKENS.DataSource, dataSource);
   container.registerValue(TOKENS.Logger, logger);
 
-  // Services will be registered here as they're implemented
-  // Example:
-  // container.register(
-  //   TOKENS.UserService,
-  //   (c) => new UserService(c.resolve(TOKENS.DataSource), c.resolve(TOKENS.Logger)),
-  //   ServiceLifetime.SCOPED
-  // );
+  // Repositories
+  const userRepository = new UserRepository();
+  container.registerValue(TOKENS.UserRepository, userRepository);
 
-  // Controllers will be registered here as they're implemented
-  // Example:
-  // container.register(
-  //   TOKENS.UserController,
-  //   (c) => new UserController(c.resolve(TOKENS.UserService)),
-  //   ServiceLifetime.SCOPED
-  // );
+  // Services
+  const userService = new UserService(userRepository, logger);
+  container.registerValue(TOKENS.UserService, userService);
+
+  // Controllers
+  const userController = new UserController();
+  container.registerValue(TOKENS.UserController, userController);
+
+  // Handlers
+  const clerkWebhookHandler = new ClerkWebhookHandler(userService, logger);
+  container.registerValue(TOKENS.ClerkWebhookHandler, clerkWebhookHandler);
+
+  return { clerkWebhookHandler, userController, userService };
 };
 
 export const bootstrap = async (): Promise<BootstrapResult> => {
@@ -42,15 +52,16 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
 
   logger.info('Initializing database connection...');
   await AppDataSource.initialize();
-  logger.info('Database connected successfully');
-
-  logger.info('Running migrations...');
   await AppDataSource.runMigrations();
   logger.info('Migrations completed');
 
-  registerDependencies(AppDataSource, logger);
+  const { clerkWebhookHandler, userController, userService } =
+    registerDependencies(AppDataSource, logger);
 
-  const app = createApp({}, logger);
+  const app = createApp(
+    { clerkWebhookHandler, userController, userService },
+    logger
+  );
 
   return { app, dataSource: AppDataSource, logger };
 };

@@ -9,6 +9,7 @@ export class ConsoleLogger implements ILogger {
 
   error(message: string, error?: Error): void {
     console.error(`[ERROR] ${new Date().toISOString()} - ${message}`);
+
     if (error) {
       console.error(error.stack);
     }

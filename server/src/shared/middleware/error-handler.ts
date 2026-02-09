@@ -13,7 +13,7 @@ export class AppError extends Error {
   }
 }
 
-export const errorHandler = (logger: ILogger) => {
+export const createErrorHandler = (logger: ILogger) => {
   return (err: Error, req: Request, res: Response, _next: NextFunction) => {
     logger.error('Error occurred:', err);
 

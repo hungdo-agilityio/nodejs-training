@@ -2,7 +2,8 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Database (SQLite)
-export const DATABASE_PATH = process.env.DATABASE_PATH || './data/salon_booking.db';
+export const DATABASE_PATH =
+  process.env.DATABASE_PATH || './data/salon_booking.db';
 
 // Clerk
 export const CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY || '';
