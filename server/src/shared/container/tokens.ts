@@ -13,6 +13,7 @@ export const TOKENS = {
   ServiceService: 'ServiceService',
   PaymentService: 'PaymentService',
   StaffService: 'StaffService',
+  SlotService: 'SlotService',
 
   // Handlers
   ClerkWebhookHandler: 'ClerkWebhookHandler',
@@ -23,4 +24,5 @@ export const TOKENS = {
   ServiceController: 'ServiceController',
   PaymentController: 'PaymentController',
   StaffController: 'StaffController',
+  SlotController: 'SlotController',
 } as const;
