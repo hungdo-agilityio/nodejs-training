@@ -1,0 +1,70 @@
+'use client';
+
+import { UserButton } from '@clerk/nextjs';
+import { useLogout } from '@/hooks';
+import { useAuthStore } from '@/stores';
+import Link from 'next/link';
+
+export default function NewBookingPage() {
+  const { isLoggingOut } = useAuthStore();
+  const { logout } = useLogout();
+
+  const handleLogout = () => {
+    logout('/sign-in');
+  };
+
+  return (
+    <div className="min-h-screen bg-sky-50">
+      {/* Header */}
+      <header className="border-b border-sky-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="text-xl font-bold text-sky-900">
+              Salon Booking
+            </Link>
+            <nav className="flex gap-4">
+              <Link href="/bookings" className="text-sm text-slate-600 hover:text-sky-600">
+                My Bookings
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-4">
+            <UserButton />
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        <div className="mb-6">
+          <Link
+            href="/bookings"
+            className="text-sm text-sky-600 hover:text-sky-700"
+          >
+            ← Back to My Bookings
+          </Link>
+          <h1 className="mt-4 text-3xl font-bold text-sky-900">
+            Create New Booking
+          </h1>
+        </div>
+
+        <div className="rounded-lg bg-white p-8 shadow-md">
+          <div className="text-center text-slate-500">
+            <p className="text-5xl">🚧</p>
+            <p className="mt-4 text-lg font-medium">Coming Soon</p>
+            <p className="mt-2">
+              Booking creation will be available in Phase 2 - Slot Management
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
