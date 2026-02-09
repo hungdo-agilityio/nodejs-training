@@ -3,6 +3,8 @@
 import { UserButton } from '@clerk/nextjs';
 import { useMe, useLogout } from '@/hooks';
 import { useAuthStore } from '@/stores';
+import { Spinner } from '@/components';
+import Link from 'next/link';
 
 export default function Dashboard() {
   const { data, isLoading, error } = useMe();
@@ -14,10 +16,12 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="min-h-screen bg-sky-50">
+      <header className="border-b border-sky-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-          <h1 className="text-xl font-bold dark:text-white">Salon Booking</h1>
+          <Link href="/" className="text-xl font-bold text-sky-900">
+            Salon Booking
+          </Link>
           <div className="flex items-center gap-4">
             <UserButton />
             <button
@@ -32,23 +36,21 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <h2 className="mb-6 text-2xl font-semibold dark:text-white">
-          Dashboard
-        </h2>
+        <h2 className="mb-6 text-2xl font-semibold text-sky-900">Dashboard</h2>
 
-        <div className="rounded-lg bg-white p-6 shadow dark:bg-zinc-900">
-          <h3 className="mb-4 text-lg font-medium dark:text-white">
-            User Info
-          </h3>
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h3 className="mb-4 text-lg font-medium text-sky-900">User Info</h3>
 
           {isLoading && (
-            <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
+            <div className="flex justify-center">
+              <Spinner className="text-sky-500" />
+            </div>
           )}
 
           {error && <p className="text-red-500">Error: {error.message}</p>}
 
           {data && (
-            <pre className="overflow-auto rounded-lg bg-zinc-100 p-4 text-sm dark:bg-zinc-800 dark:text-white">
+            <pre className="overflow-auto rounded-lg bg-sky-50 p-4 text-sm text-slate-800">
               {JSON.stringify(data, null, 2)}
             </pre>
           )}
