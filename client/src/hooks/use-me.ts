@@ -1,23 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@clerk/nextjs';
 
+type UserRole = 'USER' | 'STAFF' | 'ADMIN';
+
 interface MeResponse {
   data: {
     userId: string;
     sessionId: string;
+    role: UserRole;
   };
 }
 
 export function useMe() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, userId } = useAuth();
 
   return useQuery({
-    queryKey: ['me'],
+    queryKey: ['me', userId],
     queryFn: async (): Promise<MeResponse> => {
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true',
         },
       });
 
@@ -27,6 +31,6 @@ export function useMe() {
 
       return response.json();
     },
-    enabled: isSignedIn,
+    enabled: isSignedIn && !!userId,
   });
 }

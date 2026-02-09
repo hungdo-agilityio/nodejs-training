@@ -1,3 +1,3 @@
-// Auth module
-// Will contain: Clerk middleware, authentication utilities
-export {};
+export * from './webhooks/clerk-webhook.handler.interface';
+export * from './webhooks/clerk-webhook.handler';
+export * from './auth.routes';
