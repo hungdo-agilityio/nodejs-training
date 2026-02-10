@@ -1,16 +1,81 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { UserButton } from '@clerk/nextjs';
-import { useLogout } from '@/hooks';
+import { useLogout, useAvailableSlots, useServices } from '@/hooks';
 import { useAuthStore } from '@/stores';
-import { ServiceSelection } from '@/components/service-selection';
+import { ServiceStep } from '@/components/booking-steps/service-step';
+import { DateTimeStep } from '@/components/booking-steps/datetime-step';
+import {
+  calculateTotalDuration,
+  generateDateOptions,
+  formatTimeSlots,
+} from '@/utils/booking';
+import { getDefaultDate } from '@/utils/date';
 import Link from 'next/link';
 
 export default function NewBookingPage() {
   const { isLoggingOut } = useAuthStore();
   const { logout } = useLogout();
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [step, setStep] = useState<'services' | 'datetime'>('services');
+
+  const { data: services } = useServices();
+
+  const totalDuration = useMemo(
+    () => calculateTotalDuration(services, selectedServiceIds),
+    [services, selectedServiceIds]
+  );
+
+  const dateOptions = useMemo(
+    () => generateDateOptions(totalDuration, selectedDate),
+    [totalDuration, selectedDate]
+  );
+
+  // Only fetch slots when on datetime step
+  const {
+    data: slotsData,
+    isLoading: isLoadingSlots,
+    error: slotsError,
+  } = useAvailableSlots(
+    {
+      date: selectedDate || '',
+      serviceIds: selectedServiceIds,
+    },
+    step === 'datetime'
+  );
+
+  const timeSlots = useMemo(
+    () =>
+      slotsData?.slots
+        ? formatTimeSlots(slotsData.slots, selectedDate)
+        : [],
+    [slotsData, selectedDate]
+  );
+
+  const handleContinueToDateTime = () => {
+    if (selectedServiceIds.length > 0) {
+      if (!selectedDate) {
+        setSelectedDate(getDefaultDate());
+      }
+      setStep('datetime');
+    }
+  };
+
+  const handleBackToServices = () => {
+    setStep('services');
+  };
+
+  const handleConfirmBooking = () => {
+    // TODO: Implement booking confirmation
+    console.log('Booking confirmed', {
+      services: selectedServiceIds,
+      date: selectedDate,
+      time: selectedTime,
+    });
+  };
 
   const handleLogout = () => {
     logout('/sign-in');
@@ -26,7 +91,10 @@ export default function NewBookingPage() {
               Salon Booking
             </Link>
             <nav className="flex gap-4">
-              <Link href="/bookings" className="text-sm text-slate-600 hover:text-sky-600">
+              <Link
+                href="/bookings"
+                className="text-sm text-slate-600 hover:text-sky-600"
+              >
                 My Bookings
               </Link>
             </nav>
@@ -47,41 +115,29 @@ export default function NewBookingPage() {
       {/* Main Content */}
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6">
-          <Link
-            href="/bookings"
-            className="text-sm text-sky-600 hover:text-sky-700"
-          >
-            ← Back to My Bookings
-          </Link>
-          <h1 className="mt-4 text-3xl font-bold text-sky-900">
-            Create New Booking
-          </h1>
+          <h1 className="text-3xl font-bold text-sky-900">Create New Booking</h1>
         </div>
 
         <div className="rounded-lg bg-white p-6 shadow-md">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Select Services</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Choose one or more services for your booking
-            </p>
-          </div>
-
-          <ServiceSelection
-            selectedServiceIds={selectedServiceIds}
-            onSelectionChange={setSelectedServiceIds}
-          />
-
-          {selectedServiceIds.length > 0 && (
-            <div className="mt-6 flex items-center justify-between border-t pt-6">
-              <div className="text-sm text-gray-600">
-                {selectedServiceIds.length} service{selectedServiceIds.length > 1 ? 's' : ''} selected
-              </div>
-              <button
-                className="rounded-lg bg-sky-500 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-600"
-              >
-                Continue to Date & Time
-              </button>
-            </div>
+          {step === 'services' ? (
+            <ServiceStep
+              selectedServiceIds={selectedServiceIds}
+              onSelectionChange={setSelectedServiceIds}
+              onContinue={handleContinueToDateTime}
+            />
+          ) : (
+            <DateTimeStep
+              dateOptions={dateOptions}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              timeSlots={timeSlots}
+              selectedTime={selectedTime}
+              onSelectTime={setSelectedTime}
+              isLoadingSlots={isLoadingSlots}
+              slotsError={slotsError}
+              onBack={handleBackToServices}
+              onConfirm={handleConfirmBooking}
+            />
           )}
         </div>
       </main>
