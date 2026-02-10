@@ -1,2 +1,2 @@
 // Type definitions
-export type {};
+export * from './service';
