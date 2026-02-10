@@ -7,6 +7,11 @@ import { createApp } from './app';
 import { ConsoleLogger, ILogger } from '@shared/utils';
 import { UserRepository, UserService, UserController } from '@modules/users';
 import { SlotService, SlotController } from '@modules/slots';
+import {
+  ServiceRepository,
+  ServiceService,
+  ServiceController,
+} from '@modules/services';
 import { Booking } from '@modules/bookings/entities/booking.entity';
 import { Service } from '@modules/services/entities/service.entity';
 import { ClerkWebhookHandler } from '@modules/auth';
@@ -22,6 +27,7 @@ interface RegisteredDependencies {
   userController: UserController;
   userService: UserService;
   slotController: SlotController;
+  serviceController: ServiceController;
 }
 
 const registerDependencies = (
@@ -36,16 +42,22 @@ const registerDependencies = (
   const userRepository = new UserRepository();
   container.registerValue(TOKENS.UserRepository, userRepository);
 
+  const serviceRepository = new ServiceRepository();
+  container.registerValue(TOKENS.ServiceRepository, serviceRepository);
+
   const bookingRepository = dataSource.getRepository(Booking);
-  const serviceRepository = dataSource.getRepository(Service);
+  const serviceEntityRepository = dataSource.getRepository(Service);
 
   // Services
   const userService = new UserService(userRepository, logger);
   container.registerValue(TOKENS.UserService, userService);
 
+  const serviceService = new ServiceService(serviceRepository, logger);
+  container.registerValue(TOKENS.ServiceService, serviceService);
+
   const slotService = new SlotService(
     bookingRepository,
-    serviceRepository,
+    serviceEntityRepository,
     logger
   );
   container.registerValue(TOKENS.SlotService, slotService);
@@ -54,6 +66,9 @@ const registerDependencies = (
   const userController = new UserController();
   container.registerValue(TOKENS.UserController, userController);
 
+  const serviceController = new ServiceController(serviceService);
+  container.registerValue(TOKENS.ServiceController, serviceController);
+
   const slotController = new SlotController(slotService);
   container.registerValue(TOKENS.SlotController, slotController);
 
@@ -61,7 +76,13 @@ const registerDependencies = (
   const clerkWebhookHandler = new ClerkWebhookHandler(userService, logger);
   container.registerValue(TOKENS.ClerkWebhookHandler, clerkWebhookHandler);
 
-  return { clerkWebhookHandler, userController, userService, slotController };
+  return {
+    clerkWebhookHandler,
+    userController,
+    userService,
+    slotController,
+    serviceController,
+  };
 };
 
 export const bootstrap = async (): Promise<BootstrapResult> => {
@@ -72,11 +93,22 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   await AppDataSource.runMigrations();
   logger.info('Migrations completed');
 
-  const { clerkWebhookHandler, userController, userService, slotController } =
-    registerDependencies(AppDataSource, logger);
+  const {
+    clerkWebhookHandler,
+    userController,
+    userService,
+    slotController,
+    serviceController,
+  } = registerDependencies(AppDataSource, logger);
 
   const app = createApp(
-    { clerkWebhookHandler, userController, userService, slotController },
+    {
+      clerkWebhookHandler,
+      userController,
+      userService,
+      slotController,
+      serviceController,
+    },
     logger
   );
 

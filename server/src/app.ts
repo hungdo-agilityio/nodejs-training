@@ -8,6 +8,7 @@ import { swaggerSpec } from '@shared/swagger';
 import { IClerkWebhookHandler, createAuthRoutes } from '@modules/auth';
 import { IUserController, IUserService, createUserRoutes } from '@modules/users';
 import { ISlotController, createSlotRoutes } from '@modules/slots';
+import { IServiceController, createServiceRoutes } from '@modules/services';
 import { createHealthRoutes } from '@modules/health';
 
 export interface AppDependencies {
@@ -15,6 +16,7 @@ export interface AppDependencies {
   userController: IUserController;
   userService: IUserService;
   slotController: ISlotController;
+  serviceController: IServiceController;
 }
 
 export const createApp = (
@@ -43,6 +45,7 @@ export const createApp = (
 
   // API Routes
   app.use('/api', createHealthRoutes());
+  app.use('/api', createServiceRoutes(dependencies.serviceController)); // Public route
   app.use('/api', createSlotRoutes(dependencies.slotController)); // Public route
   app.use('/api', loadUser, createUserRoutes(dependencies.userController));
 

@@ -6,6 +6,7 @@ export const TOKENS = {
 
   // Repositories
   UserRepository: 'UserRepository',
+  ServiceRepository: 'ServiceRepository',
 
   // Services
   UserService: 'UserService',
