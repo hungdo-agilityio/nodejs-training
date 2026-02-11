@@ -5,6 +5,7 @@ import { Button } from '@/ui/button';
 import { Calendar } from '@/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover';
 import { cn } from '@/utils';
+import { formatDuration } from '@/utils/booking';
 
 interface DateOption {
   date: string; // YYYY-MM-DD format
@@ -39,55 +40,68 @@ export function DateSelector({
 
   return (
     <div>
-      <h2 className="mb-4 text-base font-semibold text-gray-900">
-        Select Date
-      </h2>
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {dates.map((dateOption) => (
-          <Button
-            key={dateOption.date}
-            type="button"
-            variant={selectedDate === dateOption.date ? 'default' : 'outline'}
-            onClick={() => onSelectDate(dateOption.date)}
-            className={cn(
-              'h-auto min-w-25 flex-col py-3',
-              selectedDate === dateOption.date &&
-                'border-sky-500 bg-sky-50 text-sky-900 hover:bg-sky-100'
-            )}
-          >
-            <span className="text-xs font-medium text-gray-600 uppercase">
-              {dateOption.dayOfWeek}
-            </span>
-            <span className="mt-1 text-sm font-semibold">
-              {dateOption.displayDate}
-            </span>
-            <span className="mt-1 text-xs text-gray-500">
-              {dateOption.duration} mins
-            </span>
-          </Button>
-        ))}
+        {dates.map((dateOption) => {
+          const isSelected = selectedDate === dateOption.date;
+          return (
+            <button
+              key={dateOption.date}
+              type="button"
+              onClick={() => onSelectDate(dateOption.date)}
+              className={cn(
+                'flex h-auto min-w-25 cursor-pointer flex-col rounded-lg border bg-white py-3 px-4 transition-all',
+                isSelected
+                  ? 'border-sky-500 shadow-xl shadow-sky-500/20'
+                  : 'border-gray-200 shadow-lg hover:border-sky-300 hover:shadow-xl'
+              )}
+            >
+              <span className={cn(
+                'text-xs font-medium uppercase',
+                isSelected ? 'text-sky-600' : 'text-gray-600'
+              )}>
+                {dateOption.dayOfWeek}
+              </span>
+              <span className={cn(
+                'mt-1 text-sm font-semibold',
+                isSelected ? 'text-sky-900' : 'text-gray-900'
+              )}>
+                {dateOption.displayDate}
+              </span>
+              <span className="mt-1 text-xs text-gray-500">
+                {formatDuration(dateOption.duration)}
+              </span>
+            </button>
+          );
+        })}
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              className="h-auto min-w-25 flex-col py-3"
+              className="flex h-auto min-w-25 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white py-3 px-4 shadow-lg transition-all hover:border-sky-300 hover:shadow-xl"
             >
-              <CalendarIcon className="h-6 w-6 text-gray-600" />
+              <CalendarIcon className="mx-auto h-6 w-6 text-gray-600" />
               <span className="mt-1 text-xs font-medium text-gray-600">
                 More dates
               </span>
-            </Button>
+            </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
               selected={selectedDateObj}
               onSelect={handleCalendarSelect}
-              disabled={(date) =>
-                date < new Date(new Date().setHours(0, 0, 0, 0))
-              }
+              disabled={(date) => {
+                // Disable past dates
+                if (date < new Date(new Date().setHours(0, 0, 0, 0))) {
+                  return true;
+                }
+                // Disable Sundays (0 = Sunday)
+                if (date.getDay() === 0) {
+                  return true;
+                }
+                return false;
+              }}
             />
           </PopoverContent>
         </Popover>
