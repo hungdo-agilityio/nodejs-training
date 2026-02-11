@@ -50,33 +50,28 @@ export function DateTimeStep({
 
   return (
     <>
-      <div className="mb-6">
-        <div className="mb-4 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="h-8 w-8"
+      <div className="mb-6 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          className="h-8 w-8"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </Button>
-          <h2 className="text-lg font-semibold text-gray-900">Date and Time</h2>
-        </div>
-        <p className="text-sm text-gray-600">
-          Select your preferred date and time
-        </p>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </Button>
+        <h2 className="text-base font-semibold text-gray-900">Select Date</h2>
       </div>
 
       <div className="space-y-6">
@@ -102,18 +97,45 @@ export function DateTimeStep({
         )}
 
         {!isLoadingSlots && !slotsError && selectedDate && (
-          <TimeSlotSelector
-            slots={timeSlots}
-            selectedTime={selectedTime}
-            onSelectTime={onSelectTime}
-          />
+          <>
+            {timeSlots.length === 0 ? (
+              <div className="rounded-lg bg-gray-50 p-8 text-center shadow-md">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <p className="mt-4 text-base font-medium text-gray-900">
+                  No slots available
+                </p>
+                <p className="mt-2 text-sm text-gray-600">
+                  There are no available time slots for this date. Please select
+                  another date.
+                </p>
+              </div>
+            ) : (
+              <TimeSlotSelector
+                slots={timeSlots}
+                selectedTime={selectedTime}
+                onSelectTime={onSelectTime}
+              />
+            )}
+          </>
         )}
       </div>
 
       {selectedDate && selectedTime && (
-        <div className="mt-6 border-t pt-6">
-          <Button onClick={onConfirm} className="w-full">
-            Confirm Appointment
+        <div className="mt-6 border-t border-gray-200 pt-6">
+          <Button onClick={onConfirm} className="w-full bg-gray-900 hover:bg-gray-800" size="lg">
+            Continue to Review
           </Button>
         </div>
       )}

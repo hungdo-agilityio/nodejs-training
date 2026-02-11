@@ -1,26 +1,24 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { UserButton } from '@clerk/nextjs';
-import { useLogout, useAvailableSlots, useServices } from '@/hooks';
-import { useAuthStore } from '@/stores';
+import { useAvailableSlots, useServices } from '@/hooks';
 import { ServiceStep } from '@/components/booking-steps/service-step';
 import { DateTimeStep } from '@/components/booking-steps/datetime-step';
+import { ReviewStep } from '@/components/booking-steps/review-step';
+import { PaymentStep } from '@/components/booking-steps/payment-step';
 import {
   calculateTotalDuration,
   generateDateOptions,
   formatTimeSlots,
 } from '@/utils/booking';
 import { getDefaultDate } from '@/utils/date';
-import Link from 'next/link';
 
 export default function NewBookingPage() {
-  const { isLoggingOut } = useAuthStore();
-  const { logout } = useLogout();
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [step, setStep] = useState<'services' | 'datetime'>('services');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'STRIPE' | null>(null);
+  const [step, setStep] = useState<'services' | 'datetime' | 'review' | 'payment'>('services');
 
   const { data: services } = useServices();
 
@@ -68,64 +66,105 @@ export default function NewBookingPage() {
     setStep('services');
   };
 
+  const handleContinueToReview = () => {
+    setStep('review');
+  };
+
+  const handleBackToDateTime = () => {
+    setStep('datetime');
+  };
+
+  const handleContinueToPayment = () => {
+    setStep('payment');
+  };
+
+  const handleBackToReview = () => {
+    setStep('review');
+  };
+
   const handleConfirmBooking = () => {
     // TODO: Implement booking confirmation
     console.log('Booking confirmed', {
       services: selectedServiceIds,
       date: selectedDate,
       time: selectedTime,
+      paymentMethod: paymentMethod,
     });
   };
 
-  const handleLogout = () => {
-    logout('/sign-in');
-  };
+  const steps = [
+    { id: 'services', label: 'Services', number: 1 },
+    { id: 'datetime', label: 'Date & Time', number: 2 },
+    { id: 'review', label: 'Review', number: 3 },
+    { id: 'payment', label: 'Payment', number: 4 },
+  ] as const;
+
+  const getStepIndex = (stepId: string) => steps.findIndex((s) => s.id === stepId);
+  const currentStepIndex = getStepIndex(step);
 
   return (
-    <div className="min-h-screen bg-sky-50">
-      {/* Header */}
-      <header className="border-b border-sky-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-xl font-bold text-sky-900">
-              Salon Booking
-            </Link>
-            <nav className="flex gap-4">
-              <Link
-                href="/bookings"
-                className="text-sm text-slate-600 hover:text-sky-600"
-              >
-                My Bookings
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <UserButton />
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      {/* Progress Indicator */}
+      <div className="mb-4 rounded-xl bg-white p-4 shadow-xl sm:mb-6 sm:p-6">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-3">
+          {steps.map((stepItem, index) => {
+            const isActive = step === stepItem.id;
+            const isCompleted = index < currentStepIndex;
+            const isPending = index > currentStepIndex;
 
-      {/* Main Content */}
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-sky-900">Create New Booking</h1>
-        </div>
+            return (
+              <div key={stepItem.id} className="flex items-center">
+                <div className="flex items-center">
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all sm:h-10 sm:w-10 ${
+                      isActive
+                        ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30'
+                        : isCompleted
+                        ? 'bg-emerald-500 text-white'
+                        : 'border-2 border-gray-400 bg-white text-gray-600'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      stepItem.number
+                    )}
+                  </div>
+                  <div className="ml-1.5 hidden sm:ml-2 sm:block">
+                    <p className={`text-xs font-medium ${isActive ? 'text-gray-900' : 'text-gray-600'}`}>
+                      {stepItem.label}
+                    </p>
+                  </div>
+                </div>
 
-        <div className="rounded-lg bg-white p-6 shadow-md">
-          {step === 'services' ? (
+                {/* Divider - show after all steps except the last one */}
+                {index < steps.length - 1 && (
+                  <div
+                    className={`ml-1.5 h-0.5 w-6 transition-all sm:ml-3 sm:w-12 ${
+                      index < currentStepIndex ? 'bg-emerald-500' : 'bg-gray-400'
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Content Card */}
+      <div className="overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="p-6">
+          {step === 'services' && (
             <ServiceStep
               selectedServiceIds={selectedServiceIds}
               onSelectionChange={setSelectedServiceIds}
               onContinue={handleContinueToDateTime}
             />
-          ) : (
+          )}
+
+          {step === 'datetime' && (
             <DateTimeStep
               dateOptions={dateOptions}
               selectedDate={selectedDate}
@@ -136,11 +175,33 @@ export default function NewBookingPage() {
               isLoadingSlots={isLoadingSlots}
               slotsError={slotsError}
               onBack={handleBackToServices}
+              onConfirm={handleContinueToReview}
+            />
+          )}
+
+          {step === 'review' && (
+            <ReviewStep
+              services={services || []}
+              selectedServiceIds={selectedServiceIds}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onEditServices={() => setStep('services')}
+              onEditDateTime={() => setStep('datetime')}
+              onBack={handleBackToDateTime}
+              onContinue={handleContinueToPayment}
+            />
+          )}
+
+          {step === 'payment' && (
+            <PaymentStep
+              paymentMethod={paymentMethod}
+              onSelectPayment={setPaymentMethod}
+              onBack={handleBackToReview}
               onConfirm={handleConfirmBooking}
             />
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

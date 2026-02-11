@@ -50,7 +50,7 @@ export function ServiceSelection({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {services.map((service) => (
         <ServiceCard
           key={service.id}

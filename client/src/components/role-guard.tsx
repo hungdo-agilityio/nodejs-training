@@ -17,7 +17,7 @@ export function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
   const { data, isLoading } = useMe();
 
   // Extract the actual role value - only changes when role changes
-  const userRole = data?.data.role as UserRole | undefined;
+  const userRole = data?.role as UserRole | undefined;
 
   useEffect(() => {
     // Only redirect if we have a role and it's not allowed

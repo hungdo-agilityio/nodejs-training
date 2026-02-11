@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/ui/button';
 import { cn } from '@/utils';
 
 interface TimeSlot {
@@ -27,28 +26,37 @@ export function TimeSlotSelector({
         Select Time
       </h2>
       <div className="max-h-100 space-y-2 overflow-y-auto">
-        {slots.map((slot) => (
-          <Button
-            key={slot.id}
-            type="button"
-            variant={selectedTime === slot.time ? 'default' : 'outline'}
-            onClick={() => slot.available && onSelectTime(slot.time)}
-            disabled={!slot.available}
-            className={cn(
-              'w-full justify-between',
-              selectedTime === slot.time &&
-                'border-sky-500 bg-sky-50 text-sky-900 hover:bg-sky-100',
-              !slot.available && 'cursor-not-allowed opacity-50'
-            )}
-          >
-            <span className="text-sm font-medium">{slot.time}</span>
-            {slot.available && slot.discount && (
-              <span className="text-xs font-semibold text-green-600">
-                {slot.discount}% Off
+        {slots.map((slot) => {
+          const isSelected = selectedTime === slot.time;
+          return (
+            <button
+              key={slot.id}
+              type="button"
+              onClick={() => slot.available && onSelectTime(slot.time)}
+              disabled={!slot.available}
+              className={cn(
+                'flex w-full cursor-pointer items-center justify-between rounded-lg border bg-white px-4 py-3 transition-all',
+                slot.available
+                  ? isSelected
+                    ? 'border-sky-500 shadow-xl shadow-sky-500/20'
+                    : 'border-gray-200 shadow-lg hover:border-sky-300 hover:shadow-xl'
+                  : 'cursor-not-allowed border-gray-200 opacity-50 shadow-md'
+              )}
+            >
+              <span className={cn(
+                'text-sm font-medium',
+                isSelected ? 'text-sky-900' : 'text-gray-900'
+              )}>
+                {slot.time}
               </span>
-            )}
-          </Button>
-        ))}
+              {slot.available && slot.discount && (
+                <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                  {slot.discount}% Off
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

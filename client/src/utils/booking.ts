@@ -9,6 +9,16 @@ interface DateOption {
 }
 
 /**
+ * Format minutes to HH:MM format
+ */
+export const formatDuration = (minutes: number): string => {
+  if (minutes === 0) return '0:00';
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}:${String(mins).padStart(2, '0')}`;
+};
+
+/**
  * Calculate total duration from selected services
  */
 export const calculateTotalDuration = (
@@ -32,22 +42,31 @@ export const generateDateOptions = (
   const today = new Date();
   const startDay = isPastBusinessHours() ? 1 : 0;
 
-  // Add next 3 available days
-  for (let i = startDay; i < startDay + 3; i++) {
+  // Add next 3 available days (excluding Sundays)
+  let daysAdded = 0;
+  let currentDay = startDay;
+
+  while (daysAdded < 3) {
     const date = new Date(today);
-    date.setDate(today.getDate() + i);
-    const dateString = formatDateToString(date);
-    options.push({
-      date: dateString,
-      dayOfWeek: date
-        .toLocaleDateString('en-US', { weekday: 'short' })
-        .toUpperCase(),
-      displayDate: date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
-      duration: totalDuration,
-    });
+    date.setDate(today.getDate() + currentDay);
+
+    // Skip Sundays (0 = Sunday)
+    if (date.getDay() !== 0) {
+      const dateString = formatDateToString(date);
+      options.push({
+        date: dateString,
+        dayOfWeek: date
+          .toLocaleDateString('en-US', { weekday: 'short' })
+          .toUpperCase(),
+        displayDate: date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        duration: totalDuration,
+      });
+      daysAdded++;
+    }
+    currentDay++;
   }
 
   // Add selected custom date if not in quick options
