@@ -12,7 +12,12 @@ import {
   ServiceService,
   ServiceController,
 } from '@modules/services';
+import {
+  BookingBusinessService,
+  BookingController,
+} from '@modules/bookings';
 import { Booking } from '@modules/bookings/entities/booking.entity';
+import { BookingService as BookingServiceEntity } from '@modules/bookings/entities/booking-service.entity';
 import { Service } from '@modules/services/entities/service.entity';
 import { ClerkWebhookHandler } from '@modules/auth';
 
@@ -28,6 +33,7 @@ interface RegisteredDependencies {
   userService: UserService;
   slotController: SlotController;
   serviceController: ServiceController;
+  bookingController: BookingController;
 }
 
 const registerDependencies = (
@@ -46,6 +52,7 @@ const registerDependencies = (
   container.registerValue(TOKENS.ServiceRepository, serviceRepository);
 
   const bookingRepository = dataSource.getRepository(Booking);
+  const bookingServiceRepository = dataSource.getRepository(BookingServiceEntity);
   const serviceEntityRepository = dataSource.getRepository(Service);
 
   // Services
@@ -62,6 +69,14 @@ const registerDependencies = (
   );
   container.registerValue(TOKENS.SlotService, slotService);
 
+  const bookingBusinessService = new BookingBusinessService(
+    bookingRepository,
+    bookingServiceRepository,
+    serviceEntityRepository,
+    logger
+  );
+  container.registerValue(TOKENS.BookingService, bookingBusinessService);
+
   // Controllers
   const userController = new UserController();
   container.registerValue(TOKENS.UserController, userController);
@@ -71,6 +86,9 @@ const registerDependencies = (
 
   const slotController = new SlotController(slotService);
   container.registerValue(TOKENS.SlotController, slotController);
+
+  const bookingController = new BookingController(bookingBusinessService);
+  container.registerValue(TOKENS.BookingController, bookingController);
 
   // Handlers
   const clerkWebhookHandler = new ClerkWebhookHandler(userService, logger);
@@ -82,6 +100,7 @@ const registerDependencies = (
     userService,
     slotController,
     serviceController,
+    bookingController,
   };
 };
 
@@ -99,6 +118,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     userService,
     slotController,
     serviceController,
+    bookingController,
   } = registerDependencies(AppDataSource, logger);
 
   const app = createApp(
@@ -108,6 +128,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
       userService,
       slotController,
       serviceController,
+      bookingController,
     },
     logger
   );

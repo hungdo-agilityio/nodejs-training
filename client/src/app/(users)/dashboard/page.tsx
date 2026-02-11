@@ -21,7 +21,7 @@ export default function Dashboard() {
       <div className="mb-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Link
           href="/bookings/new"
-          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-sky-500 to-blue-600 p-6 transition-all hover:shadow-2xl hover:shadow-sky-500/30"
+          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-linear-to-br from-sky-500 to-blue-600 p-6 transition-all hover:shadow-2xl hover:shadow-sky-500/30"
         >
           <div className="relative z-10">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">

@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { getAuth } from '@clerk/express';
 import { IUserController } from './user.controller.interface';
 
 export class UserController implements IUserController {
@@ -17,7 +16,7 @@ export class UserController implements IUserController {
         email: req.user.email,
         firstName: req.user.firstName,
         lastName: req.user.lastName,
-        phoneNumber: req.user.phoneNumber,
+        phoneNumber: req.user.phone,
         role: req.user.role,
         createdAt: req.user.createdAt,
         updatedAt: req.user.updatedAt,
