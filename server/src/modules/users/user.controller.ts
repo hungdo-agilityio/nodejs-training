@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
 import { IUserController } from './user.controller.interface';
+import { ApiError } from '@shared/errors';
 
 export class UserController implements IUserController {
   async getMe(req: Request, res: Response): Promise<void> {
     // User is already loaded by loadUser middleware
     if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      const error = ApiError.unauthorized('Authentication required');
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 

@@ -3,6 +3,7 @@ import { verifyWebhook, WebhookEvent } from '@clerk/express/webhooks';
 import { ILogger } from '@shared/types';
 import { IUserService, ClerkUserData } from '@modules/users';
 import { IClerkWebhookHandler } from './clerk-webhook.handler.interface';
+import { ApiError } from '@shared/errors';
 
 export class ClerkWebhookHandler implements IClerkWebhookHandler {
   constructor(
@@ -17,7 +18,8 @@ export class ClerkWebhookHandler implements IClerkWebhookHandler {
       event = await verifyWebhook(req);
     } catch (err) {
       this.logger.error('Webhook verification failed', err as Error);
-      res.status(400).json({ error: 'Webhook verification failed' });
+      const error = ApiError.validationError('Webhook verification failed');
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
@@ -31,8 +33,9 @@ export class ClerkWebhookHandler implements IClerkWebhookHandler {
         );
 
         if (result.isErr()) {
-          this.logger.error('Failed to sync user', new Error(result.getError()));
-          res.status(500).json({ error: result.getError() });
+          const apiError = result.getError();
+          this.logger.error('Failed to sync user', apiError);
+          res.status(apiError.statusCode).json(apiError.toJSON());
           return;
         }
         break;
@@ -45,8 +48,9 @@ export class ClerkWebhookHandler implements IClerkWebhookHandler {
           );
 
           if (result.isErr()) {
-            this.logger.error('Failed to delete user', new Error(result.getError()));
-            res.status(500).json({ error: result.getError() });
+            const apiError = result.getError();
+            this.logger.error('Failed to delete user', apiError);
+            res.status(apiError.statusCode).json(apiError.toJSON());
             return;
           }
         }

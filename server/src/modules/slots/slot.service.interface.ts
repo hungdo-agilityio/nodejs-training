@@ -1,4 +1,5 @@
 import { Result } from '@shared/utils';
+import { ApiError } from '@shared/errors';
 
 export interface SlotInfo {
   startTime: string;
@@ -36,5 +37,5 @@ export interface GetSlotsParams {
 export interface ISlotService {
   getAvailableSlots(
     params: GetSlotsParams
-  ): Promise<Result<SlotAvailabilityResponse, string>>;
+  ): Promise<Result<SlotAvailabilityResponse, ApiError>>;
 }

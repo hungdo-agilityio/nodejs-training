@@ -1,5 +1,6 @@
 import { User } from './entities/user.entity';
 import { Result } from '@shared/utils';
+import { ApiError } from '@shared/errors';
 
 export interface ClerkUserData {
   id: string;
@@ -18,7 +19,7 @@ export interface ClerkUserData {
 }
 
 export interface IUserService {
-  getUserByClerkId(clerkUserId: string): Promise<Result<User, string>>;
-  syncUserFromClerk(clerkUser: ClerkUserData): Promise<Result<User, string>>;
-  deleteUserByClerkId(clerkUserId: string): Promise<Result<boolean, string>>;
+  getUserByClerkId(clerkUserId: string): Promise<Result<User, ApiError>>;
+  syncUserFromClerk(clerkUser: ClerkUserData): Promise<Result<User, ApiError>>;
+  deleteUserByClerkId(clerkUserId: string): Promise<Result<boolean, ApiError>>;
 }

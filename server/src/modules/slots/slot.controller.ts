@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ISlotService } from './slot.service.interface';
 import { ISlotController } from './slot.controller.interface';
+import { ApiError } from '@shared/errors';
 
 export class SlotController implements ISlotController {
   constructor(private slotService: ISlotService) {}
@@ -9,12 +10,10 @@ export class SlotController implements ISlotController {
     const { date, service_ids } = req.query;
 
     if (!date || typeof date !== 'string') {
-      res.status(400).json({
-        error: {
-          code: 'INVALID_REQUEST',
-          message: 'Date query parameter is required (YYYY-MM-DD)',
-        },
-      });
+      const error = ApiError.validationError(
+        'Date query parameter is required (YYYY-MM-DD)'
+      );
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
@@ -30,12 +29,8 @@ export class SlotController implements ISlotController {
     });
 
     if (result.isErr()) {
-      res.status(400).json({
-        error: {
-          code: 'SLOT_ERROR',
-          message: result.getError(),
-        },
-      });
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 

@@ -1,37 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { ILogger } from '@shared/types';
-
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    public code: string,
-    message: string
-  ) {
-    super(message);
-    this.name = 'AppError';
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+import { ApiError } from '@shared/errors';
 
 export const createErrorHandler = (logger: ILogger) => {
-  return (err: Error, req: Request, res: Response, _next: NextFunction) => {
+  return (err: Error, _req: Request, res: Response, _next: NextFunction) => {
     logger.error('Error occurred:', err);
 
-    if (err instanceof AppError) {
-      return res.status(err.statusCode).json({
-        error: {
-          code: err.code,
-          message: err.message,
-        },
-      });
+    if (err instanceof ApiError) {
+      return res.status(err.statusCode).json(err.toJSON());
     }
 
-    // Default error response
-    res.status(500).json({
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An unexpected error occurred',
-      },
-    });
+    // Default error response for unexpected errors
+    const defaultError = ApiError.internalError('An unexpected error occurred');
+    res.status(defaultError.statusCode).json(defaultError.toJSON());
   };
 };

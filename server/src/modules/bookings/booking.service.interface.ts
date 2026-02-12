@@ -1,5 +1,6 @@
 import { Result } from '@shared/utils';
 import { PaymentMethod, BookingStatus } from '@shared/types';
+import { ApiError } from '@shared/errors';
 
 export interface CreateBookingDTO {
   userId: string;
@@ -37,7 +38,7 @@ export interface IBookingService {
    */
   validateServicesAndCalculateTotals(
     serviceIds: string[]
-  ): Promise<Result<BookingValidationResult, string>>;
+  ): Promise<Result<BookingValidationResult, ApiError>>;
 
   /**
    * Check if the requested time slot has available capacity
@@ -46,7 +47,7 @@ export interface IBookingService {
     appointmentDate: string,
     appointmentTime: string,
     durationMinutes: number
-  ): Promise<Result<boolean, string>>;
+  ): Promise<Result<boolean, ApiError>>;
 
   /**
    * Generate a unique idempotency key for the booking
@@ -58,5 +59,5 @@ export interface IBookingService {
    */
   createBooking(
     dto: CreateBookingDTO
-  ): Promise<Result<CreatedBookingResult, string>>;
+  ): Promise<Result<CreatedBookingResult, ApiError>>;
 }
