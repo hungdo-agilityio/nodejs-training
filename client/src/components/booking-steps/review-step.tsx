@@ -2,7 +2,7 @@
 
 import { Button } from '@/ui/button';
 import { Service } from '@/types/service';
-import { formatDuration } from '@/utils/booking';
+import { formatDuration, formatTimeForDisplay } from '@/utils/booking';
 import { useMemo } from 'react';
 
 interface ReviewStepProps {
@@ -37,7 +37,10 @@ export function ReviewStep({
         (sum, service) => sum + service.durationMinutes,
         0
       ),
-      totalPrice: selectedServices.reduce((sum, service) => sum + service.price, 0),
+      totalPrice: selectedServices.reduce(
+        (sum, service) => sum + service.price,
+        0
+      ),
     };
   }, [selectedServices]);
 
@@ -74,14 +77,18 @@ export function ReviewStep({
             />
           </svg>
         </Button>
-        <h2 className="text-base font-semibold text-gray-900">Review Your Booking</h2>
+        <h2 className="text-base font-semibold text-gray-900">
+          Review Your Booking
+        </h2>
       </div>
 
       <div className="space-y-4">
         {/* Services Section */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900">Selected Services</h3>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Selected Services
+            </h3>
             <button
               onClick={onEditServices}
               className="cursor-pointer text-xs font-medium text-sky-600 hover:text-sky-700"
@@ -96,7 +103,9 @@ export function ReviewStep({
                 className="flex items-start justify-between border-b border-gray-100 pb-2 last:border-0 last:pb-0"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{service.name}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {service.name}
+                  </p>
                   <p className="mt-0.5 text-xs text-gray-600">
                     {formatDuration(service.durationMinutes)}
                   </p>
@@ -153,16 +162,22 @@ export function ReviewStep({
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p className="text-sm text-gray-900">{selectedTime || 'Not selected'}</p>
+              <p className="text-sm text-gray-900">
+                {selectedTime
+                  ? formatTimeForDisplay(selectedTime)
+                  : 'Not selected'}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Total Summary */}
-        <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-sky-50 to-blue-50 p-4 shadow-lg">
+        <div className="rounded-lg border border-gray-200 bg-linear-to-br from-sky-50 to-blue-50 p-4 shadow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Duration</p>
+              <p className="text-sm font-medium text-gray-600">
+                Total Duration
+              </p>
               <p className="mt-0.5 text-lg font-semibold text-gray-900">
                 {formatDuration(totalDuration)}
               </p>
@@ -179,8 +194,8 @@ export function ReviewStep({
         {/* Terms Notice */}
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-xs text-amber-900">
-            By continuing, you agree to our cancellation policy. Please arrive 10 minutes
-            early for your appointment.
+            By continuing, you agree to our cancellation policy. Please arrive
+            10 minutes early for your appointment.
           </p>
         </div>
       </div>

@@ -27,12 +27,13 @@ export function TimeSlotSelector({
       </h2>
       <div className="max-h-100 space-y-2 overflow-y-auto">
         {slots.map((slot) => {
-          const isSelected = selectedTime === slot.time;
+          const isSelected = selectedTime === slot.id;
+
           return (
             <button
               key={slot.id}
               type="button"
-              onClick={() => slot.available && onSelectTime(slot.time)}
+              onClick={() => slot.available && onSelectTime(slot.id)}
               disabled={!slot.available}
               className={cn(
                 'flex w-full cursor-pointer items-center justify-between rounded-lg border bg-white px-4 py-3 transition-all',
@@ -43,10 +44,12 @@ export function TimeSlotSelector({
                   : 'cursor-not-allowed border-gray-200 opacity-50 shadow-md'
               )}
             >
-              <span className={cn(
-                'text-sm font-medium',
-                isSelected ? 'text-sky-900' : 'text-gray-900'
-              )}>
+              <span
+                className={cn(
+                  'text-sm font-medium',
+                  isSelected ? 'text-sky-900' : 'text-gray-900'
+                )}
+              >
                 {slot.time}
               </span>
               {slot.available && slot.discount && (

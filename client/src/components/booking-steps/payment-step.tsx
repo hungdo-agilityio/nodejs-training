@@ -1,12 +1,14 @@
 'use client';
 
 import { Button } from '@/ui/button';
+import { PaymentMethod } from '@/types/booking';
 
 interface PaymentStepProps {
-  paymentMethod: 'CASH' | 'STRIPE' | null;
-  onSelectPayment: (method: 'CASH' | 'STRIPE') => void;
+  paymentMethod: PaymentMethod | null;
+  onSelectPayment: (method: PaymentMethod) => void;
   onBack: () => void;
   onConfirm: () => void;
+  isLoading?: boolean;
 }
 
 export function PaymentStep({
@@ -14,6 +16,7 @@ export function PaymentStep({
   onSelectPayment,
   onBack,
   onConfirm,
+  isLoading = false,
 }: PaymentStepProps) {
   return (
     <>
@@ -183,8 +186,23 @@ export function PaymentStep({
 
       {paymentMethod && (
         <div className="mt-6 border-t border-gray-200 pt-6">
-          <Button onClick={onConfirm} className="w-full bg-gray-900 hover:bg-gray-800" size="lg">
-            Confirm Booking
+          <Button
+            onClick={onConfirm}
+            className="w-full bg-gray-900 hover:bg-gray-800"
+            size="lg"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Creating booking...
+              </>
+            ) : (
+              'Confirm Booking'
+            )}
           </Button>
         </div>
       )}

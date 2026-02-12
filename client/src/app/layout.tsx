@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from 'sonner';
 import { QueryProvider } from '@/providers';
 import { GlobalLoading } from '@/components';
 import './globals.css';
@@ -34,6 +35,7 @@ export default function RootLayout({
           <QueryProvider>
             {children}
             <GlobalLoading />
+            <Toaster position="top-right" richColors />
           </QueryProvider>
         </body>
       </html>

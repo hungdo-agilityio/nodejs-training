@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useAvailableSlots, useServices } from '@/hooks';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { useAvailableSlots, useServices, useCreateBooking } from '@/hooks';
 import { ServiceStep } from '@/components/booking-steps/service-step';
 import { DateTimeStep } from '@/components/booking-steps/datetime-step';
 import { ReviewStep } from '@/components/booking-steps/review-step';
@@ -10,17 +12,35 @@ import {
   calculateTotalDuration,
   generateDateOptions,
   formatTimeSlots,
+  formatTimeForDisplay,
 } from '@/utils/booking';
 import { getDefaultDate } from '@/utils/date';
+import { PaymentMethod } from '@/types/booking';
 
 export default function NewBookingPage() {
+  const router = useRouter();
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'STRIPE' | null>(null);
-  const [step, setStep] = useState<'services' | 'datetime' | 'review' | 'payment'>('services');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [step, setStep] = useState<
+    'services' | 'datetime' | 'review' | 'payment'
+  >('services');
 
   const { data: services } = useServices();
+  const createBooking = useCreateBooking({
+    onSuccess: (booking) => {
+      toast.success('Booking created successfully!', {
+        description: `Your appointment is confirmed for ${booking.appointmentDate} at ${formatTimeForDisplay(booking.appointmentTime)}`,
+      });
+      router.push(`/bookings/${booking.id}`);
+    },
+    onError: (error) => {
+      toast.error('Failed to create booking', {
+        description: error.message || 'Please try again or contact support.',
+      });
+    },
+  });
 
   const totalDuration = useMemo(
     () => calculateTotalDuration(services, selectedServiceIds),
@@ -47,9 +67,7 @@ export default function NewBookingPage() {
 
   const timeSlots = useMemo(
     () =>
-      slotsData?.slots
-        ? formatTimeSlots(slotsData.slots, selectedDate)
-        : [],
+      slotsData?.slots ? formatTimeSlots(slotsData.slots, selectedDate) : [],
     [slotsData, selectedDate]
   );
 
@@ -83,11 +101,17 @@ export default function NewBookingPage() {
   };
 
   const handleConfirmBooking = () => {
-    // TODO: Implement booking confirmation
-    console.log('Booking confirmed', {
-      services: selectedServiceIds,
-      date: selectedDate,
-      time: selectedTime,
+    if (!selectedDate || !selectedTime || !paymentMethod) {
+      toast.error('Missing information', {
+        description: 'Please complete all required fields',
+      });
+      return;
+    }
+
+    createBooking.mutate({
+      serviceIds: selectedServiceIds,
+      appointmentDate: selectedDate,
+      appointmentTime: selectedTime,
       paymentMethod: paymentMethod,
     });
   };
@@ -99,7 +123,8 @@ export default function NewBookingPage() {
     { id: 'payment', label: 'Payment', number: 4 },
   ] as const;
 
-  const getStepIndex = (stepId: string) => steps.findIndex((s) => s.id === stepId);
+  const getStepIndex = (stepId: string) =>
+    steps.findIndex((s) => s.id === stepId);
   const currentStepIndex = getStepIndex(step);
 
   return (
@@ -110,7 +135,6 @@ export default function NewBookingPage() {
           {steps.map((stepItem, index) => {
             const isActive = step === stepItem.id;
             const isCompleted = index < currentStepIndex;
-            const isPending = index > currentStepIndex;
 
             return (
               <div key={stepItem.id} className="flex items-center">
@@ -120,20 +144,32 @@ export default function NewBookingPage() {
                       isActive
                         ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30'
                         : isCompleted
-                        ? 'bg-emerald-500 text-white'
-                        : 'border-2 border-gray-400 bg-white text-gray-600'
+                          ? 'bg-emerald-500 text-white'
+                          : 'border-2 border-gray-400 bg-white text-gray-600'
                     }`}
                   >
                     {isCompleted ? (
-                      <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="h-4 w-4 sm:h-5 sm:w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     ) : (
                       stepItem.number
                     )}
                   </div>
                   <div className="ml-1.5 hidden sm:ml-2 sm:block">
-                    <p className={`text-xs font-medium ${isActive ? 'text-gray-900' : 'text-gray-600'}`}>
+                    <p
+                      className={`text-xs font-medium ${isActive ? 'text-gray-900' : 'text-gray-600'}`}
+                    >
                       {stepItem.label}
                     </p>
                   </div>
@@ -143,7 +179,9 @@ export default function NewBookingPage() {
                 {index < steps.length - 1 && (
                   <div
                     className={`ml-1.5 h-0.5 w-6 transition-all sm:ml-3 sm:w-12 ${
-                      index < currentStepIndex ? 'bg-emerald-500' : 'bg-gray-400'
+                      index < currentStepIndex
+                        ? 'bg-emerald-500'
+                        : 'bg-gray-400'
                     }`}
                   />
                 )}
@@ -198,6 +236,7 @@ export default function NewBookingPage() {
               onSelectPayment={setPaymentMethod}
               onBack={handleBackToReview}
               onConfirm={handleConfirmBooking}
+              isLoading={createBooking.isPending}
             />
           )}
         </div>
