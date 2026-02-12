@@ -17,22 +17,47 @@ export type BookingStatus =
   | 'CANCELLED'
   | 'EXPIRED';
 
+export interface BookingService {
+  name: string;
+  price: number;
+  durationMinutes: number;
+}
+
 export interface Booking {
   id: string;
-  userId: string;
-  appointmentDate: string;
+  servicesCount: number;
   appointmentDatetime: string;
+  appointmentDate: string;
   appointmentTime: string;
-  totalPrice: number;
-  totalDurationMinutes: number;
   status: BookingStatus;
   paymentMethod: PaymentMethod;
-  idempotencyKey: string;
-  notes?: string;
+  totalPrice: number;
+  totalDurationMinutes: number;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface CreateBookingResponse {
   data: Booking;
+}
+
+export interface GetBookingsResponse {
+  data: Booking[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface GetBookingsParams {
+  status?: BookingStatus;
+  paymentMethod?: PaymentMethod;
+  serviceId?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: 'upcoming' | 'recent' | 'past';
+  page?: number;
+  limit?: number;
 }

@@ -7,6 +7,128 @@ export function createBookingRoutes(controller: IBookingController): Router {
   /**
    * @openapi
    * /bookings:
+   *   get:
+   *     summary: Get user's bookings
+   *     description: Retrieves all bookings for the authenticated user with optional filters
+   *     tags:
+   *       - Bookings
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, COMPLETED, CANCELLED, EXPIRED]
+   *         description: Filter by booking status
+   *       - in: query
+   *         name: payment_method
+   *         schema:
+   *           type: string
+   *           enum: [CASH, STRIPE]
+   *         description: Filter by payment method
+   *       - in: query
+   *         name: service_id
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Filter by service ID
+   *       - in: query
+   *         name: date
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter by specific appointment date (YYYY-MM-DD)
+   *       - in: query
+   *         name: start_date
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter by date range start (YYYY-MM-DD)
+   *       - in: query
+   *         name: end_date
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter by date range end (YYYY-MM-DD)
+   *       - in: query
+   *         name: sort_by
+   *         schema:
+   *           type: string
+   *           enum: [upcoming, recent, past]
+   *           default: upcoming
+   *         description: Sort order (upcoming = appointment date ASC, recent = created date DESC, past = appointment date DESC)
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: Page number
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 100
+   *         description: Items per page
+   *     responses:
+   *       200:
+   *         description: Bookings retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       id:
+   *                         type: string
+   *                         format: uuid
+   *                       services:
+   *                         type: array
+   *                         items:
+   *                           type: object
+   *                           properties:
+   *                             name:
+   *                               type: string
+   *                             price:
+   *                               type: number
+   *                             durationMinutes:
+   *                               type: integer
+   *                       appointmentDatetime:
+   *                         type: string
+   *                         format: date-time
+   *                       appointmentDate:
+   *                         type: string
+   *                         format: date
+   *                       appointmentTime:
+   *                         type: string
+   *                       status:
+   *                         type: string
+   *                       paymentMethod:
+   *                         type: string
+   *                       totalPrice:
+   *                         type: number
+   *                       totalDurationMinutes:
+   *                         type: integer
+   *                       createdAt:
+   *                         type: string
+   *                         format: date-time
+   *                 meta:
+   *                   type: object
+   *                   properties:
+   *                     total:
+   *                       type: integer
+   *                     page:
+   *                       type: integer
+   *                     limit:
+   *                       type: integer
+   *                     totalPages:
+   *                       type: integer
+   *       401:
+   *         description: Unauthorized - authentication required
    *   post:
    *     summary: Create a new booking
    *     description: Creates a new booking with the selected services and appointment time. Includes concurrency protection via idempotency key.
@@ -101,6 +223,7 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *       401:
    *         description: Unauthorized - authentication required
    */
+  router.get('/', (req, res) => controller.getBookings(req, res));
   router.post('/', (req, res) => controller.createBooking(req, res));
 
   return router;

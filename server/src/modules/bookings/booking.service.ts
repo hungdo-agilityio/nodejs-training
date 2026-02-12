@@ -12,6 +12,9 @@ import {
   CreateBookingDTO,
   BookingValidationResult,
   CreatedBookingResult,
+  GetBookingsFilters,
+  GetBookingsResult,
+  BookingListItem,
 } from './booking.service.interface';
 
 /**
@@ -325,6 +328,141 @@ export class BookingBusinessService implements IBookingService {
       return Result.err(
         ApiError.internalError('Failed to create booking')
       );
+    }
+  }
+
+  /**
+   * Get bookings with filters and pagination
+   */
+  async getBookings(
+    filters: GetBookingsFilters
+  ): Promise<Result<GetBookingsResult, ApiError>> {
+    try {
+      const {
+        userId,
+        status,
+        paymentMethod,
+        serviceId,
+        date,
+        startDate,
+        endDate,
+        sortBy = 'upcoming',
+        page = 1,
+        limit = 100,
+      } = filters;
+
+      // Determine sort field and direction based on sortBy
+      let sortField: string;
+      let sortDirection: 'ASC' | 'DESC';
+
+      switch (sortBy) {
+        case 'upcoming':
+          sortField = 'booking.appointmentDatetime';
+          sortDirection = 'ASC';
+          break;
+        case 'past':
+          sortField = 'booking.appointmentDatetime';
+          sortDirection = 'DESC';
+          break;
+        case 'recent':
+        default:
+          sortField = 'booking.createdAt';
+          sortDirection = 'DESC';
+          break;
+      }
+
+      // Build query with loadRelationCountAndMap to get services count
+      const queryBuilder = this.bookingRepository
+        .createQueryBuilder('booking')
+        .loadRelationCountAndMap('booking.servicesCount', 'booking.bookingServices')
+        .orderBy(sortField, sortDirection);
+
+      // Apply filters
+      if (userId) {
+        queryBuilder.andWhere('booking.userId = :userId', { userId });
+      }
+
+      if (status) {
+        queryBuilder.andWhere('booking.status = :status', { status });
+      }
+
+      if (paymentMethod) {
+        queryBuilder.andWhere('booking.paymentMethod = :paymentMethod', {
+          paymentMethod,
+        });
+      }
+
+      if (serviceId) {
+        queryBuilder
+          .leftJoin('booking.bookingServices', 'bookingService')
+          .andWhere('bookingService.serviceId = :serviceId', {
+            serviceId,
+          });
+      }
+
+      if (date) {
+        queryBuilder.andWhere('booking.appointmentDate = :date', { date });
+      }
+
+      if (startDate && endDate) {
+        queryBuilder.andWhere(
+          'booking.appointmentDate BETWEEN :startDate AND :endDate',
+          { startDate, endDate }
+        );
+      } else if (startDate) {
+        queryBuilder.andWhere('booking.appointmentDate >= :startDate', {
+          startDate,
+        });
+      } else if (endDate) {
+        queryBuilder.andWhere('booking.appointmentDate <= :endDate', {
+          endDate,
+        });
+      }
+
+      // Get total count
+      const total = await queryBuilder.getCount();
+
+      // Apply pagination
+      const skip = (page - 1) * limit;
+      queryBuilder.skip(skip).take(limit);
+
+      // Execute query
+      const bookings = await queryBuilder.getMany();
+
+      // Format response
+      const data: BookingListItem[] = bookings.map((booking) => {
+        const appointmentTime = new Date(booking.appointmentDatetime)
+          .toTimeString()
+          .substring(0, 5);
+
+        const bookingWithCount = booking as Booking & { servicesCount?: number };
+
+        return {
+          id: booking.id,
+          servicesCount: bookingWithCount.servicesCount || 0,
+          appointmentDatetime: booking.appointmentDatetime.toISOString(),
+          appointmentDate: booking.appointmentDate,
+          appointmentTime,
+          status: booking.status,
+          paymentMethod: booking.paymentMethod,
+          totalPrice: Number(booking.totalPrice),
+          totalDurationMinutes: booking.totalDurationMinutes,
+          createdAt: booking.createdAt.toISOString(),
+        };
+      });
+
+      return Result.ok({
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to get bookings', error as Error);
+      return Result.err(ApiError.internalError('Failed to retrieve bookings'));
     }
   }
 }
