@@ -1,6 +1,7 @@
 import { Repository, In } from 'typeorm';
 import { Result } from '@shared/utils';
 import { ILogger } from '@shared/types';
+import { ApiError } from '@shared/errors';
 import {
   BUSINESS_HOURS,
   SLOT_INTERVAL_MINUTES,
@@ -24,7 +25,7 @@ export class SlotService implements ISlotService {
 
   async getAvailableSlots(
     params: GetSlotsParams
-  ): Promise<Result<SlotAvailabilityResponse, string>> {
+  ): Promise<Result<SlotAvailabilityResponse, ApiError>> {
     try {
       const { date, serviceIds } = params;
 
@@ -34,11 +35,15 @@ export class SlotService implements ISlotService {
       today.setHours(0, 0, 0, 0);
 
       if (isNaN(requestedDate.getTime())) {
-        return Result.err('Invalid date format. Use YYYY-MM-DD');
+        return Result.err(
+          ApiError.validationError('Invalid date format. Use YYYY-MM-DD')
+        );
       }
 
       if (requestedDate < today) {
-        return Result.err('Date cannot be in the past');
+        return Result.err(
+          ApiError.validationError('Date cannot be in the past')
+        );
       }
 
       // Get day of week
@@ -59,7 +64,9 @@ export class SlotService implements ISlotService {
       );
 
       if (!businessHours || !businessHours.isOpen) {
-        return Result.err('Salon is closed on this day');
+        return Result.err(
+          ApiError.validationError('Salon is closed on this day')
+        );
       }
 
       // Calculate total duration if services provided
@@ -73,7 +80,9 @@ export class SlotService implements ISlotService {
         });
 
         if (services.length !== serviceIds.length) {
-          return Result.err('One or more services not found or inactive');
+          return Result.err(
+            ApiError.notFound('One or more services not found or inactive')
+          );
         }
 
         totalDuration = services.reduce(
@@ -148,7 +157,9 @@ export class SlotService implements ISlotService {
       return Result.ok(response);
     } catch (error) {
       this.logger.error('Failed to get available slots', error as Error);
-      return Result.err('Failed to retrieve available slots');
+      return Result.err(
+        ApiError.internalError('Failed to retrieve available slots')
+      );
     }
   }
 

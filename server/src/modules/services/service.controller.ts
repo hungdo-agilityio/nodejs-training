@@ -9,12 +9,8 @@ export class ServiceController implements IServiceController {
     const result = await this.serviceService.getActiveServices();
 
     if (result.isErr()) {
-      res.status(500).json({
-        error: {
-          code: 'SERVICE_ERROR',
-          message: result.getError(),
-        },
-      });
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 

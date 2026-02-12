@@ -1,5 +1,6 @@
 import { ILogger } from '@shared/types';
 import { Result } from '@shared/utils';
+import { ApiError } from '@shared/errors';
 import { IUserRepository } from './user.repository.interface';
 import { ClerkUserData, IUserService } from './user.service.interface';
 import { User } from './entities/user.entity';
@@ -10,31 +11,33 @@ export class UserService implements IUserService {
     private logger: ILogger
   ) {}
 
-  async getUserByClerkId(clerkUserId: string): Promise<Result<User, string>> {
+  async getUserByClerkId(clerkUserId: string): Promise<Result<User, ApiError>> {
     try {
       const user = await this.userRepository.findByClerkUserId(clerkUserId);
 
       if (!user) {
-        return Result.err('User not found');
+        return Result.err(ApiError.notFound('User not found'));
       }
 
       return Result.ok(user);
     } catch (error) {
       this.logger.error('Failed to get user by Clerk ID', error as Error);
-      return Result.err('Failed to retrieve user');
+      return Result.err(ApiError.internalError('Failed to retrieve user'));
     }
   }
 
   async syncUserFromClerk(
     clerkUser: ClerkUserData
-  ): Promise<Result<User, string>> {
+  ): Promise<Result<User, ApiError>> {
     try {
       const primaryEmail = clerkUser.email_addresses.find(
         (e) => e.id === clerkUser.primary_email_address_id
       );
 
       if (!primaryEmail) {
-        return Result.err('User has no primary email address');
+        return Result.err(
+          ApiError.validationError('User has no primary email address')
+        );
       }
 
       const primaryPhone = clerkUser.phone_numbers?.find(
@@ -63,7 +66,7 @@ export class UserService implements IUserService {
         });
 
         if (!updated) {
-          return Result.err('Failed to update user');
+          return Result.err(ApiError.internalError('Failed to update user'));
         }
 
         return Result.ok(updated);
@@ -74,13 +77,13 @@ export class UserService implements IUserService {
       return Result.ok(user);
     } catch (error) {
       this.logger.error('Failed to sync user from Clerk', error as Error);
-      return Result.err('Failed to sync user');
+      return Result.err(ApiError.internalError('Failed to sync user'));
     }
   }
 
   async deleteUserByClerkId(
     clerkUserId: string
-  ): Promise<Result<boolean, string>> {
+  ): Promise<Result<boolean, ApiError>> {
     try {
       this.logger.info(`Deleting user: ${clerkUserId}`);
       const deleted = await this.userRepository.delete(clerkUserId);
@@ -88,7 +91,7 @@ export class UserService implements IUserService {
       return Result.ok(deleted);
     } catch (error) {
       this.logger.error('Failed to delete user', error as Error);
-      return Result.err('Failed to delete user');
+      return Result.err(ApiError.internalError('Failed to delete user'));
     }
   }
 }

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { getAuth } from '@clerk/express';
 import { IUserService } from '@modules/users';
-import { AppError } from './error-handler';
+import { ApiError } from '@shared/errors';
 
 /**
  * Middleware factory that loads the authenticated user from database
@@ -16,14 +16,14 @@ export const createLoadUser = (userService: IUserService) => {
     const auth = getAuth(req);
 
     if (!auth.userId) {
-      next(new AppError(401, 'UNAUTHORIZED', 'Authentication required'));
+      next(ApiError.unauthorized('Authentication required'));
       return;
     }
 
     const result = await userService.getUserByClerkId(auth.userId);
 
     if (result.isErr()) {
-      next(new AppError(404, 'USER_NOT_FOUND', result.getError()));
+      next(result.getError());
       return;
     }
 

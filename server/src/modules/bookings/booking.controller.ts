@@ -2,41 +2,62 @@ import { Request, Response } from 'express';
 import { IBookingController } from './booking.controller.interface';
 import { BookingBusinessService } from './booking.service';
 import { PaymentMethod } from '@shared/types';
+import { ApiError } from '@shared/errors';
 
 export class BookingController implements IBookingController {
   constructor(private bookingService: BookingBusinessService) {}
 
   async createBooking(req: Request, res: Response): Promise<void> {
     if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      const error = ApiError.unauthorized('Authentication required');
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
-    const { serviceIds, appointmentDate, appointmentTime, paymentMethod, notes } = req.body;
+    const {
+      serviceIds,
+      appointmentDate,
+      appointmentTime,
+      paymentMethod,
+      notes,
+    } = req.body;
 
     // Validate required fields
     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-      res.status(400).json({ error: 'serviceIds is required and must be a non-empty array' });
+      const error = ApiError.validationError(
+        'serviceIds is required and must be a non-empty array'
+      );
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
     if (!appointmentDate) {
-      res.status(400).json({ error: 'appointmentDate is required' });
+      const error = ApiError.validationError(
+        'appointmentDate is required'
+      );
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
     if (!appointmentTime) {
-      res.status(400).json({ error: 'appointmentTime is required' });
+      const error = ApiError.validationError(
+        'appointmentTime is required'
+      );
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
     if (!paymentMethod) {
-      res.status(400).json({ error: 'paymentMethod is required' });
+      const error = ApiError.validationError('paymentMethod is required');
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
     if (!['CASH', 'STRIPE'].includes(paymentMethod)) {
-      res.status(400).json({ error: 'paymentMethod must be either CASH or STRIPE' });
+      const error = ApiError.validationError(
+        'paymentMethod must be either CASH or STRIPE'
+      );
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
@@ -50,7 +71,8 @@ export class BookingController implements IBookingController {
     });
 
     if (result.isErr()) {
-      res.status(400).json({ error: result.getError() });
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
       return;
     }
 

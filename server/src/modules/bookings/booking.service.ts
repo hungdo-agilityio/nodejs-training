@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { ILogger, BookingStatus, PaymentMethod } from '@shared/types';
 import { Result } from '@shared/utils';
 import { DEFAULT_CAPACITY } from '@shared/constants/business-hours';
+import { ApiError } from '@shared/errors';
 import { Service } from '@modules/services/entities/service.entity';
 import { Booking } from './entities/booking.entity';
 import { BookingService as BookingServiceEntity } from './entities/booking-service.entity';
@@ -35,11 +36,13 @@ export class BookingBusinessService implements IBookingService {
    */
   async validateServicesAndCalculateTotals(
     serviceIds: string[]
-  ): Promise<Result<BookingValidationResult, string>> {
+  ): Promise<Result<BookingValidationResult, ApiError>> {
     try {
       // Validate input
       if (!serviceIds || serviceIds.length === 0) {
-        return Result.err('At least one service must be selected');
+        return Result.err(
+          ApiError.validationError('At least one service must be selected')
+        );
       }
 
       // Remove duplicates
@@ -55,7 +58,9 @@ export class BookingBusinessService implements IBookingService {
 
       // Check if all services were found
       if (services.length !== uniqueServiceIds.length) {
-        return Result.err('One or more services not found or inactive');
+        return Result.err(
+          ApiError.notFound('One or more services not found or inactive')
+        );
       }
 
       // Calculate totals
@@ -83,7 +88,9 @@ export class BookingBusinessService implements IBookingService {
       });
     } catch (error) {
       this.logger.error('Failed to validate services', error as Error);
-      return Result.err('Failed to validate services');
+      return Result.err(
+        ApiError.internalError('Failed to validate services')
+      );
     }
   }
 
@@ -94,18 +101,24 @@ export class BookingBusinessService implements IBookingService {
     appointmentDate: string,
     appointmentTime: string,
     durationMinutes: number
-  ): Promise<Result<boolean, string>> {
+  ): Promise<Result<boolean, ApiError>> {
     try {
       // Validate date format
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (!dateRegex.test(appointmentDate)) {
-        return Result.err('Invalid date format. Use YYYY-MM-DD');
+        return Result.err(
+          ApiError.validationError('Invalid date format. Use YYYY-MM-DD')
+        );
       }
 
       // Validate time format
       const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
       if (!timeRegex.test(appointmentTime)) {
-        return Result.err('Invalid time format. Use HH:MM (24-hour format)');
+        return Result.err(
+          ApiError.validationError(
+            'Invalid time format. Use HH:MM (24-hour format)'
+          )
+        );
       }
 
       // Parse time
@@ -150,7 +163,11 @@ export class BookingBusinessService implements IBookingService {
       const isAvailable = occupiedCount < DEFAULT_CAPACITY;
 
       if (!isAvailable) {
-        return Result.err('No capacity available for the requested time slot');
+        return Result.err(
+          ApiError.conflict(
+            'No capacity available for the requested time slot'
+          )
+        );
       }
 
       return Result.ok(true);
@@ -159,7 +176,9 @@ export class BookingBusinessService implements IBookingService {
         'Failed to check capacity availability',
         error as Error
       );
-      return Result.err('Failed to check capacity availability');
+      return Result.err(
+        ApiError.internalError('Failed to check capacity availability')
+      );
     }
   }
 
@@ -186,7 +205,7 @@ export class BookingBusinessService implements IBookingService {
    */
   async createBooking(
     dto: CreateBookingDTO
-  ): Promise<Result<CreatedBookingResult, string>> {
+  ): Promise<Result<CreatedBookingResult, ApiError>> {
     try {
       // 1. Validate services and calculate totals
       const validationResult = await this.validateServicesAndCalculateTotals(
@@ -220,7 +239,7 @@ export class BookingBusinessService implements IBookingService {
       });
 
       if (existingBooking) {
-        return Result.err('Booking already exists');
+        return Result.err(ApiError.conflict('Booking already exists'));
       }
 
       // 5. Create appointment datetime
@@ -268,7 +287,7 @@ export class BookingBusinessService implements IBookingService {
           (error.message.includes('UNIQUE constraint failed') ||
             error.message.includes('duplicate key'))
         ) {
-          return Result.err('Booking already exists');
+          return Result.err(ApiError.conflict('Booking already exists'));
         }
 
         throw error;
@@ -287,18 +306,25 @@ export class BookingBusinessService implements IBookingService {
 
       await this.bookingServiceRepository.save(bookingServices);
 
+      // Extract time from datetime for the response
+      const appointmentTime = new Date(savedBooking.appointmentDatetime)
+        .toTimeString()
+        .substring(0, 5); // HH:MM format
+
       return Result.ok({
         id: savedBooking.id,
         appointmentDate: savedBooking.appointmentDate,
         appointmentDatetime: savedBooking.appointmentDatetime,
+        appointmentTime: appointmentTime,
         totalPrice: savedBooking.totalPrice,
         totalDurationMinutes: savedBooking.totalDurationMinutes,
         status: savedBooking.status,
         idempotencyKey: savedBooking.idempotencyKey,
       });
-    } catch (error) {
-      this.logger.error('Failed to create booking', error as Error);
-      return Result.err('Failed to create booking');
+    } catch {
+      return Result.err(
+        ApiError.internalError('Failed to create booking')
+      );
     }
   }
 }
