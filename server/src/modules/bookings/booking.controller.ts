@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { IBookingController } from './booking.controller.interface';
 import { BookingBusinessService } from './booking.service';
-import { PaymentMethod } from '@shared/types';
+import { PaymentMethod, BookingStatus } from '@shared/types';
 import { ApiError } from '@shared/errors';
 
 export class BookingController implements IBookingController {
@@ -78,5 +78,77 @@ export class BookingController implements IBookingController {
 
     const booking = result.getValue();
     res.status(201).json({ data: booking });
+  }
+
+  async getBookings(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      const error = ApiError.unauthorized('Authentication required');
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const {
+      status,
+      payment_method,
+      service_id,
+      date,
+      start_date,
+      end_date,
+      sort_by,
+      page,
+      limit,
+    } = req.query;
+
+    // Validate status if provided
+    if (status && typeof status === 'string') {
+      const validStatuses = [
+        'PENDING_PAYMENT',
+        'CONFIRMED',
+        'AUTHORIZED',
+        'CHECKED_IN',
+        'COMPLETED',
+        'CANCELLED',
+        'EXPIRED',
+      ];
+      if (!validStatuses.includes(status)) {
+        const error = ApiError.validationError(
+          `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+        );
+        res.status(error.statusCode).json(error.toJSON());
+        return;
+      }
+    }
+
+    // Validate payment_method if provided
+    if (payment_method && typeof payment_method === 'string') {
+      if (!['CASH', 'STRIPE'].includes(payment_method)) {
+        const error = ApiError.validationError(
+          'Invalid payment_method. Must be either CASH or STRIPE'
+        );
+        res.status(error.statusCode).json(error.toJSON());
+        return;
+      }
+    }
+
+    const result = await this.bookingService.getBookings({
+      userId: req.user.id, // Users can only see their own bookings
+      status: status as BookingStatus | undefined,
+      paymentMethod: payment_method as PaymentMethod | undefined,
+      serviceId: service_id as string | undefined,
+      date: date as string | undefined,
+      startDate: start_date as string | undefined,
+      endDate: end_date as string | undefined,
+      sortBy: sort_by as 'upcoming' | 'recent' | 'past' | undefined,
+      page: page ? parseInt(page as string, 10) : undefined,
+      limit: limit ? parseInt(limit as string, 10) : undefined,
+    });
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    res.json(result.getValue());
   }
 }

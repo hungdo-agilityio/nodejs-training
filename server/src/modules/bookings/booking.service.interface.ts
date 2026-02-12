@@ -32,6 +32,42 @@ export interface CreatedBookingResult {
   idempotencyKey: string;
 }
 
+export interface GetBookingsFilters {
+  userId?: string;
+  status?: BookingStatus;
+  paymentMethod?: PaymentMethod;
+  serviceId?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: 'upcoming' | 'recent' | 'past';
+  page?: number;
+  limit?: number;
+}
+
+export interface BookingListItem {
+  id: string;
+  servicesCount: number;
+  appointmentDatetime: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  status: BookingStatus;
+  paymentMethod: PaymentMethod;
+  totalPrice: number;
+  totalDurationMinutes: number;
+  createdAt: string;
+}
+
+export interface GetBookingsResult {
+  data: BookingListItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface IBookingService {
   /**
    * Validate services and calculate totals
@@ -60,4 +96,11 @@ export interface IBookingService {
   createBooking(
     dto: CreateBookingDTO
   ): Promise<Result<CreatedBookingResult, ApiError>>;
+
+  /**
+   * Get bookings with filters
+   */
+  getBookings(
+    filters: GetBookingsFilters
+  ): Promise<Result<GetBookingsResult, ApiError>>;
 }
