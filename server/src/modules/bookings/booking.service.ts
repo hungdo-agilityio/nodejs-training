@@ -15,6 +15,7 @@ import {
   GetBookingsFilters,
   GetBookingsResult,
   BookingListItem,
+  BookingDetail,
 } from './booking.service.interface';
 
 /**
@@ -91,9 +92,7 @@ export class BookingBusinessService implements IBookingService {
       });
     } catch (error) {
       this.logger.error('Failed to validate services', error as Error);
-      return Result.err(
-        ApiError.internalError('Failed to validate services')
-      );
+      return Result.err(ApiError.internalError('Failed to validate services'));
     }
   }
 
@@ -167,9 +166,7 @@ export class BookingBusinessService implements IBookingService {
 
       if (!isAvailable) {
         return Result.err(
-          ApiError.conflict(
-            'No capacity available for the requested time slot'
-          )
+          ApiError.conflict('No capacity available for the requested time slot')
         );
       }
 
@@ -325,9 +322,7 @@ export class BookingBusinessService implements IBookingService {
         idempotencyKey: savedBooking.idempotencyKey,
       });
     } catch {
-      return Result.err(
-        ApiError.internalError('Failed to create booking')
-      );
+      return Result.err(ApiError.internalError('Failed to create booking'));
     }
   }
 
@@ -374,7 +369,10 @@ export class BookingBusinessService implements IBookingService {
       // Build query with loadRelationCountAndMap to get services count
       const queryBuilder = this.bookingRepository
         .createQueryBuilder('booking')
-        .loadRelationCountAndMap('booking.servicesCount', 'booking.bookingServices')
+        .loadRelationCountAndMap(
+          'booking.servicesCount',
+          'booking.bookingServices'
+        )
         .orderBy(sortField, sortDirection);
 
       // Apply filters
@@ -435,7 +433,9 @@ export class BookingBusinessService implements IBookingService {
           .toTimeString()
           .substring(0, 5);
 
-        const bookingWithCount = booking as Booking & { servicesCount?: number };
+        const bookingWithCount = booking as Booking & {
+          servicesCount?: number;
+        };
 
         return {
           id: booking.id,
@@ -463,6 +463,144 @@ export class BookingBusinessService implements IBookingService {
     } catch (error) {
       this.logger.error('Failed to get bookings', error as Error);
       return Result.err(ApiError.internalError('Failed to retrieve bookings'));
+    }
+  }
+
+  /**
+   * Get booking by ID
+   */
+  async getBookingById(
+    bookingId: string,
+    userId: string
+  ): Promise<Result<BookingDetail, ApiError>> {
+    try {
+      const booking = await this.bookingRepository.findOne({
+        where: { id: bookingId },
+        relations: ['bookingServices'],
+      });
+
+      if (!booking) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      // Check if user owns this booking
+      if (booking.userId !== userId) {
+        return Result.err(
+          ApiError.forbidden('You do not have access to this booking')
+        );
+      }
+
+      const appointmentTime = new Date(booking.appointmentDatetime)
+        .toTimeString()
+        .substring(0, 5);
+
+      const bookingDetail: BookingDetail = {
+        id: booking.id,
+        services: booking.bookingServices.map((bs) => ({
+          id: bs.serviceId,
+          name: bs.serviceName,
+          price: Number(bs.servicePrice),
+          durationMinutes: bs.serviceDurationMinutes,
+        })),
+        appointmentDatetime: booking.appointmentDatetime.toISOString(),
+        appointmentDate: booking.appointmentDate,
+        appointmentTime,
+        status: booking.status,
+        paymentMethod: booking.paymentMethod,
+        totalPrice: Number(booking.totalPrice),
+        totalDurationMinutes: booking.totalDurationMinutes,
+        notes: booking.notes,
+        createdAt: booking.createdAt.toISOString(),
+      };
+
+      return Result.ok(bookingDetail);
+    } catch (error) {
+      this.logger.error('Failed to get booking by ID', error as Error);
+      return Result.err(ApiError.internalError('Failed to retrieve booking'));
+    }
+  }
+
+  /**
+   * Update booking with Stripe payment intent ID
+   */
+  async updateBookingPaymentIntent(
+    bookingId: string,
+    paymentIntentId: string
+  ): Promise<Result<void, ApiError>> {
+    try {
+      const result = await this.bookingRepository.update(
+        { id: bookingId },
+        { stripePaymentIntentId: paymentIntentId }
+      );
+
+      if (result.affected === 0) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      return Result.ok(undefined);
+    } catch (error) {
+      this.logger.error(
+        'Failed to update booking payment intent',
+        error as Error
+      );
+      return Result.err(
+        ApiError.internalError('Failed to update booking payment intent')
+      );
+    }
+  }
+
+  /**
+   * Update booking status (used by webhooks)
+   */
+  async updateBookingStatus(
+    bookingId: string,
+    status: BookingStatus
+  ): Promise<Result<void, ApiError>> {
+    try {
+      const result = await this.bookingRepository.update(
+        { id: bookingId },
+        { status }
+      );
+
+      if (result.affected === 0) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      return Result.ok(undefined);
+    } catch (error) {
+      this.logger.error('Failed to update booking status', error as Error);
+      return Result.err(
+        ApiError.internalError('Failed to update booking status')
+      );
+    }
+  }
+
+  /**
+   * Get booking by Stripe payment intent ID (used by webhooks)
+   */
+  async getBookingByPaymentIntentId(
+    paymentIntentId: string
+  ): Promise<Result<Booking, ApiError>> {
+    try {
+      const booking = await this.bookingRepository.findOne({
+        where: { stripePaymentIntentId: paymentIntentId },
+      });
+
+      if (!booking) {
+        return Result.err(
+          ApiError.notFound('Booking not found for this payment intent')
+        );
+      }
+
+      return Result.ok(booking);
+    } catch (error) {
+      this.logger.error(
+        'Failed to get booking by payment intent ID',
+        error as Error
+      );
+      return Result.err(
+        ApiError.internalError('Failed to retrieve booking by payment intent')
+      );
     }
   }
 }

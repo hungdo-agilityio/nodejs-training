@@ -12,14 +12,18 @@ import {
   ServiceService,
   ServiceController,
 } from '@modules/services';
-import {
-  BookingBusinessService,
-  BookingController,
-} from '@modules/bookings';
+import { BookingBusinessService, BookingController } from '@modules/bookings';
 import { Booking } from '@modules/bookings/entities/booking.entity';
 import { BookingService as BookingServiceEntity } from '@modules/bookings/entities/booking-service.entity';
 import { Service } from '@modules/services/entities/service.entity';
 import { ClerkWebhookHandler } from '@modules/auth';
+import {
+  StripeService,
+  PaymentController,
+  WebhookController,
+} from '@modules/payments';
+import Stripe from 'stripe';
+import { STRIPE_SECRET_KEY } from '@shared/constants';
 
 export interface BootstrapResult {
   app: Application;
@@ -34,6 +38,8 @@ interface RegisteredDependencies {
   slotController: SlotController;
   serviceController: ServiceController;
   bookingController: BookingController;
+  paymentController: PaymentController;
+  webhookController: WebhookController;
 }
 
 const registerDependencies = (
@@ -52,7 +58,8 @@ const registerDependencies = (
   container.registerValue(TOKENS.ServiceRepository, serviceRepository);
 
   const bookingRepository = dataSource.getRepository(Booking);
-  const bookingServiceRepository = dataSource.getRepository(BookingServiceEntity);
+  const bookingServiceRepository =
+    dataSource.getRepository(BookingServiceEntity);
   const serviceEntityRepository = dataSource.getRepository(Service);
 
   // Services
@@ -77,6 +84,13 @@ const registerDependencies = (
   );
   container.registerValue(TOKENS.BookingService, bookingBusinessService);
 
+  // Stripe
+  const stripe = new Stripe(STRIPE_SECRET_KEY, {
+    apiVersion: '2026-01-28.clover',
+  });
+  const stripeService = new StripeService(stripe, logger);
+  container.registerValue(TOKENS.StripeService, stripeService);
+
   // Controllers
   const userController = new UserController();
   container.registerValue(TOKENS.UserController, userController);
@@ -90,6 +104,19 @@ const registerDependencies = (
   const bookingController = new BookingController(bookingBusinessService);
   container.registerValue(TOKENS.BookingController, bookingController);
 
+  const paymentController = new PaymentController(
+    stripeService,
+    bookingBusinessService
+  );
+  container.registerValue(TOKENS.PaymentController, paymentController);
+
+  const webhookController = new WebhookController(
+    stripeService,
+    bookingBusinessService,
+    logger
+  );
+  container.registerValue(TOKENS.WebhookController, webhookController);
+
   // Handlers
   const clerkWebhookHandler = new ClerkWebhookHandler(userService, logger);
   container.registerValue(TOKENS.ClerkWebhookHandler, clerkWebhookHandler);
@@ -101,6 +128,8 @@ const registerDependencies = (
     slotController,
     serviceController,
     bookingController,
+    paymentController,
+    webhookController,
   };
 };
 
@@ -119,6 +148,8 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     slotController,
     serviceController,
     bookingController,
+    paymentController,
+    webhookController,
   } = registerDependencies(AppDataSource, logger);
 
   const app = createApp(
@@ -129,6 +160,8 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
       slotController,
       serviceController,
       bookingController,
+      paymentController,
+      webhookController,
     },
     logger
   );

@@ -13,11 +13,13 @@ export const TOKENS = {
   BookingService: 'BookingService',
   ServiceService: 'ServiceService',
   PaymentService: 'PaymentService',
+  StripeService: 'StripeService',
   StaffService: 'StaffService',
   SlotService: 'SlotService',
 
   // Handlers
   ClerkWebhookHandler: 'ClerkWebhookHandler',
+  WebhookController: 'WebhookController',
 
   // Controllers
   UserController: 'UserController',

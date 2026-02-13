@@ -151,4 +151,24 @@ export class BookingController implements IBookingController {
 
     res.json(result.getValue());
   }
+
+  async getBookingById(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      const error = ApiError.unauthorized('Authentication required');
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const { id } = req.params;
+
+    const result = await this.bookingService.getBookingById(id, req.user.id);
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    res.json({ data: result.getValue() });
+  }
 }

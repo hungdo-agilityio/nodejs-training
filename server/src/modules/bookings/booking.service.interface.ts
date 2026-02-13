@@ -1,6 +1,7 @@
 import { Result } from '@shared/utils';
 import { PaymentMethod, BookingStatus } from '@shared/types';
 import { ApiError } from '@shared/errors';
+import { Booking } from './entities/booking.entity';
 
 export interface CreateBookingDTO {
   userId: string;
@@ -68,6 +69,25 @@ export interface GetBookingsResult {
   };
 }
 
+export interface BookingDetail {
+  id: string;
+  services: Array<{
+    id: string;
+    name: string;
+    price: number;
+    durationMinutes: number;
+  }>;
+  appointmentDatetime: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  status: BookingStatus;
+  paymentMethod: PaymentMethod;
+  totalPrice: number;
+  totalDurationMinutes: number;
+  notes: string | null;
+  createdAt: string;
+}
+
 export interface IBookingService {
   /**
    * Validate services and calculate totals
@@ -103,4 +123,35 @@ export interface IBookingService {
   getBookings(
     filters: GetBookingsFilters
   ): Promise<Result<GetBookingsResult, ApiError>>;
+
+  /**
+   * Get booking by ID
+   */
+  getBookingById(
+    bookingId: string,
+    userId: string
+  ): Promise<Result<BookingDetail, ApiError>>;
+
+  /**
+   * Update booking with Stripe payment intent ID
+   */
+  updateBookingPaymentIntent(
+    bookingId: string,
+    paymentIntentId: string
+  ): Promise<Result<void, ApiError>>;
+
+  /**
+   * Update booking status (used by webhooks)
+   */
+  updateBookingStatus(
+    bookingId: string,
+    status: BookingStatus
+  ): Promise<Result<void, ApiError>>;
+
+  /**
+   * Get booking by Stripe payment intent ID (used by webhooks)
+   */
+  getBookingByPaymentIntentId(
+    paymentIntentId: string
+  ): Promise<Result<Booking, ApiError>>;
 }

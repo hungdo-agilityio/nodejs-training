@@ -11,6 +11,12 @@ import { ISlotController, createSlotRoutes } from '@modules/slots';
 import { IServiceController, createServiceRoutes } from '@modules/services';
 import { IBookingController, createBookingRoutes } from '@modules/bookings';
 import { createHealthRoutes } from '@modules/health';
+import {
+  IPaymentController,
+  IWebhookController,
+  createPaymentRoutes,
+  createWebhookRoutes,
+} from '@modules/payments';
 
 export interface AppDependencies {
   clerkWebhookHandler: IClerkWebhookHandler;
@@ -19,6 +25,8 @@ export interface AppDependencies {
   slotController: ISlotController;
   serviceController: IServiceController;
   bookingController: IBookingController;
+  paymentController: IPaymentController;
+  webhookController: IWebhookController;
 }
 
 export const createApp = (
@@ -30,8 +38,9 @@ export const createApp = (
   // Middleware
   app.use(cors());
 
-  // Auth routes (webhooks need raw body, must come before express.json())
+  // Webhook routes (need raw body, must come before express.json())
   app.use('/api', createAuthRoutes(dependencies));
+  app.use('/api/webhooks', createWebhookRoutes(dependencies.webhookController));
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -51,6 +60,7 @@ export const createApp = (
   app.use('/api', createSlotRoutes(dependencies.slotController)); // Public route
   app.use('/api', loadUser, createUserRoutes(dependencies.userController));
   app.use('/api/bookings', loadUser, createBookingRoutes(dependencies.bookingController));
+  app.use('/api/payments', loadUser, createPaymentRoutes(dependencies.paymentController));
 
   // Error handling
   app.use(createErrorHandler(logger));
