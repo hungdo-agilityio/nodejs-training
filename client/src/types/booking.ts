@@ -18,6 +18,7 @@ export type BookingStatus =
   | 'EXPIRED';
 
 export interface BookingService {
+  id?: string;
   name: string;
   price: number;
   durationMinutes: number;
@@ -33,6 +34,7 @@ export interface Booking {
   paymentMethod: PaymentMethod;
   totalPrice: number;
   totalDurationMinutes: number;
+  idempotencyKey: string;
   createdAt: string;
 }
 
@@ -60,4 +62,18 @@ export interface GetBookingsParams {
   sortBy?: 'upcoming' | 'recent' | 'past';
   page?: number;
   limit?: number;
+}
+
+export interface BookingDetail {
+  id: string;
+  services: BookingService[];
+  appointmentDatetime: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  status: BookingStatus;
+  paymentMethod: PaymentMethod;
+  totalPrice: number;
+  totalDurationMinutes: number;
+  notes: string | null;
+  createdAt: string;
 }

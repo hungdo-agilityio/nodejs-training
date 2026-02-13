@@ -224,6 +224,7 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *         description: Unauthorized - authentication required
    */
   router.get('/', (req, res) => controller.getBookings(req, res));
+  router.get('/:id', (req, res) => controller.getBookingById(req, res));
   router.post('/', (req, res) => controller.createBooking(req, res));
 
   return router;

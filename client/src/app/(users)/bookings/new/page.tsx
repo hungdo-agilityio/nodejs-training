@@ -8,6 +8,7 @@ import { ServiceStep } from '@/components/booking-steps/service-step';
 import { DateTimeStep } from '@/components/booking-steps/datetime-step';
 import { ReviewStep } from '@/components/booking-steps/review-step';
 import { PaymentStep } from '@/components/booking-steps/payment-step';
+import { StripeCheckout } from '@/components/stripe-checkout';
 import {
   calculateTotalDuration,
   generateDateOptions,
@@ -24,16 +25,30 @@ export default function NewBookingPage() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [step, setStep] = useState<
-    'services' | 'datetime' | 'review' | 'payment'
+    'services' | 'datetime' | 'review' | 'payment' | 'stripe-payment'
   >('services');
+  const [createdBooking, setCreatedBooking] = useState<{
+    id: string;
+    idempotencyKey: string;
+  } | null>(null);
 
   const { data: services } = useServices();
   const createBooking = useCreateBooking({
     onSuccess: (booking) => {
-      toast.success('Booking created successfully!', {
-        description: `Your appointment is confirmed for ${booking.appointmentDate} at ${formatTimeForDisplay(booking.appointmentTime)}`,
-      });
-      router.push(`/bookings/${booking.id}`);
+      // If cash payment, redirect immediately
+      if (paymentMethod === 'CASH') {
+        toast.success('Booking created successfully!', {
+          description: `Your appointment is confirmed for ${booking.appointmentDate} at ${formatTimeForDisplay(booking.appointmentTime)}`,
+        });
+        router.push(`/bookings/${booking.id}`);
+      } else {
+        // For Stripe payment, store booking and show payment step
+        setCreatedBooking({
+          id: booking.id,
+          idempotencyKey: booking.idempotencyKey,
+        });
+        setStep('stripe-payment');
+      }
     },
     onError: (error) => {
       toast.error('Failed to create booking', {
@@ -237,6 +252,25 @@ export default function NewBookingPage() {
               onBack={handleBackToReview}
               onConfirm={handleConfirmBooking}
               isLoading={createBooking.isPending}
+            />
+          )}
+
+          {step === 'stripe-payment' && createdBooking && (
+            <StripeCheckout
+              bookingId={createdBooking.id}
+              idempotencyKey={createdBooking.idempotencyKey}
+              onSuccess={() => {
+                toast.success('Payment successful!', {
+                  description: 'Your booking has been confirmed',
+                });
+                router.push(`/bookings/${createdBooking.id}`);
+              }}
+              onCancel={() => {
+                toast.info('Payment cancelled', {
+                  description: 'You can complete payment later from your bookings',
+                });
+                router.push(`/bookings/${createdBooking.id}`);
+              }}
             />
           )}
         </div>

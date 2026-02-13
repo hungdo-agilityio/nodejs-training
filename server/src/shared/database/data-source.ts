@@ -8,7 +8,7 @@ export const AppDataSource = new DataSource({
   type: 'sqlite',
   database: DATABASE_PATH,
   synchronize: false, // Never use in production
-  logging: NODE_ENV === 'development',
+  logging: false,
   entities: ['src/modules/**/entities/*.ts'],
   migrations: ['src/shared/database/migrations/*.ts'],
   subscribers: [],
