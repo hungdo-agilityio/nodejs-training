@@ -32,11 +32,11 @@ export function useCreateBooking(options?: UseCreateBookingOptions) {
       );
       return response.data;
     },
-    onSuccess: async (data, variables, context) => {
+    onSuccess: async (...args) => {
       // Invalidate bookings query to refetch the list
       await queryClient.invalidateQueries({ queryKey: ['bookings'] });
       // Call the user's onSuccess if provided
-      await onSuccess?.(data, variables, context);
+      await onSuccess?.(...args);
     },
   });
 }

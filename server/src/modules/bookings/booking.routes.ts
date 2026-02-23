@@ -226,6 +226,7 @@ export function createBookingRoutes(controller: IBookingController): Router {
   router.get('/', (req, res) => controller.getBookings(req, res));
   router.get('/:id', (req, res) => controller.getBookingById(req, res));
   router.post('/', (req, res) => controller.createBooking(req, res));
+  router.post('/:id/cancel', (req, res) => controller.cancelBooking(req, res));
 
   return router;
 }

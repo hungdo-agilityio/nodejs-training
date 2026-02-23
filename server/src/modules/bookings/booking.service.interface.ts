@@ -89,6 +89,16 @@ export interface BookingDetail {
   createdAt: string;
 }
 
+export interface CancelBookingResult {
+  id: string;
+  status: BookingStatus;
+  previousStatus: BookingStatus;
+  paymentMethod: PaymentMethod;
+  cancelledAt: string;
+  stripePaymentIntentId: string | null;
+  totalPrice: number;
+}
+
 export interface IBookingService {
   /**
    * Validate services and calculate totals
@@ -155,4 +165,12 @@ export interface IBookingService {
   getBookingByPaymentIntentId(
     paymentIntentId: string
   ): Promise<Result<Booking, ApiError>>;
+
+  /**
+   * Cancel a booking
+   */
+  cancelBooking(
+    bookingId: string,
+    userId: string
+  ): Promise<Result<CancelBookingResult, ApiError>>;
 }

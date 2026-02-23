@@ -1,11 +1,16 @@
 import { Request, Response } from 'express';
 import { IBookingController } from './booking.controller.interface';
 import { BookingBusinessService } from './booking.service';
+import { CancelBookingResult } from './booking.service.interface';
+import { IStripeService } from '@modules/payments/stripe.service.interface';
 import { PaymentMethod, BookingStatus } from '@shared/types';
 import { ApiError } from '@shared/errors';
 
 export class BookingController implements IBookingController {
-  constructor(private bookingService: BookingBusinessService) {}
+  constructor(
+    private bookingService: BookingBusinessService,
+    private stripeService: IStripeService
+  ) {}
 
   async createBooking(req: Request, res: Response): Promise<void> {
     if (!req.user) {
@@ -180,5 +185,76 @@ export class BookingController implements IBookingController {
     }
 
     res.json({ data: result.getValue() });
+  }
+
+  async cancelBooking(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      const error = ApiError.unauthorized('Authentication required');
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const { id } = req.params;
+
+    const result = await this.bookingService.cancelBooking(
+      id as string,
+      req.user.id
+    );
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const cancelResult = result.getValue();
+    const stripeResult = await this.reverseStripePayment(cancelResult);
+
+    res.json({
+      data: {
+        id: cancelResult.id,
+        status: cancelResult.status,
+        paymentMethod: cancelResult.paymentMethod,
+        cancelledAt: cancelResult.cancelledAt,
+        refundInitiated: stripeResult,
+        ...(stripeResult && { refundAmount: cancelResult.totalPrice }),
+      },
+    });
+  }
+
+  /**
+   * Reverse a Stripe payment based on the booking's previous status.
+   * AUTHORIZED (uncaptured hold) → cancel the PaymentIntent
+   * CONFIRMED (captured charge) → create a refund
+   */
+  private async reverseStripePayment(
+    cancelResult: CancelBookingResult
+  ): Promise<boolean> {
+    if (
+      cancelResult.paymentMethod !== PaymentMethod.STRIPE ||
+      !cancelResult.stripePaymentIntentId
+    ) {
+      return false;
+    }
+
+    const { previousStatus, stripePaymentIntentId } = cancelResult;
+
+    if (previousStatus === BookingStatus.AUTHORIZED) {
+      const result = await this.stripeService.cancelPaymentIntent(
+        stripePaymentIntentId
+      );
+
+      return result.isOk();
+    }
+
+    if (previousStatus === BookingStatus.CONFIRMED) {
+      const result = await this.stripeService.createRefund(
+        stripePaymentIntentId
+      );
+
+      return result.isOk();
+    }
+
+    return false;
   }
 }

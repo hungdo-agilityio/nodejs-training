@@ -35,7 +35,7 @@ const statusColors: Record<BookingStatus, string> = {
 const statusLabels: Record<BookingStatus, string> = {
   PENDING_PAYMENT: 'Pending',
   CONFIRMED: 'Confirmed',
-  AUTHORIZED: 'Authorized',
+  AUTHORIZED: 'Payment Held',
   CHECKED_IN: 'Checked In',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
@@ -97,9 +97,8 @@ export default function BookingsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="PENDING_PAYMENT">Pending Payment</SelectItem>
               <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-              <SelectItem value="AUTHORIZED">Authorized</SelectItem>
+              <SelectItem value="AUTHORIZED">Payment Held</SelectItem>
               <SelectItem value="CHECKED_IN">Checked In</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="CANCELLED">Cancelled</SelectItem>
