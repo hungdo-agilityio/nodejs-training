@@ -31,6 +31,20 @@ export const isPastBusinessHours = (): boolean => {
 };
 
 /**
+ * Format a YYYY-MM-DD string to a long display format
+ * e.g. "2026-02-23" → "Monday, February 23, 2026"
+ */
+export const formatDisplayDate = (dateStr: string): string => {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+/**
  * Get default date based on business hours
  * Returns today if within hours, tomorrow if past hours
  */
@@ -44,4 +58,17 @@ export const getDefaultDate = (): string => {
   }
 
   return formatDateToString(now);
+};
+
+/**
+ * Format time from "HH:mm" to "h:mm AM/PM"
+ * e.g. "14:30" → "2:30 PM"
+ */
+export const formatTime = (time: string): string => {
+  const [h, m] = time.split(':');
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${m} ${ampm}`;
 };

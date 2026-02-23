@@ -1,89 +1,179 @@
 'use client';
 
-import { UserButton } from '@clerk/nextjs';
-import { useMe, useLogout } from '@/hooks';
-import { useAuthStore } from '@/stores';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { useMe } from '@/hooks';
+import { useCheckInBooking } from '@/hooks/use-check-in-booking';
+import { useCompleteBooking } from '@/hooks/use-complete-booking';
+import { useNoShowBooking } from '@/hooks/use-no-show-booking';
 import { Spinner } from '@/components';
-import Link from 'next/link';
+import { StaffDailyBooking } from '@/types/staff';
+import { StaffHeader } from './_components/staff-header';
+import { DateNavigation } from './_components/date-navigation';
+import { SummaryCards } from './_components/summary-cards';
+import { BookingList } from './_components/booking-list';
+import { ConfirmDialog } from './_components/confirm-dialog';
+import { MOCK_BOOKINGS, getMockSummary } from './_components/mock-data';
+import { formatDateToString, formatTime } from '@/utils';
+
+type ConfirmAction = {
+  type: 'check-in' | 'complete' | 'no-show';
+  booking: StaffDailyBooking;
+};
+
+const CONFIRM_CONFIG = {
+  'check-in': {
+    title: 'Check In Customer',
+    actionLabel: 'Check In',
+    actionClass: 'bg-blue-600 hover:bg-blue-700 text-white',
+  },
+  complete: {
+    title: 'Complete Booking',
+    actionLabel: 'Complete',
+    actionClass: 'bg-green-600 hover:bg-green-700 text-white',
+  },
+  'no-show': {
+    title: 'Mark as No-Show',
+    actionLabel: 'Mark No-Show',
+    actionClass: 'bg-gray-600 hover:bg-gray-700 text-white',
+  },
+} as const;
+
+function getConfirmDescription(action: ConfirmAction): string {
+  const { type, booking } = action;
+  const name = booking.customer.name;
+  const time = formatTime(booking.appointmentTime);
+
+  switch (type) {
+    case 'check-in':
+      return `Check in ${name} for their ${time} appointment?${booking.paymentMethod === 'STRIPE' ? ' This will capture the card payment.' : ''}`;
+    case 'complete':
+      return `Mark ${name}'s booking as complete?`;
+    case 'no-show':
+      return `Mark ${name} as a no-show for their ${time} appointment?`;
+  }
+}
 
 export default function StaffDashboard() {
-  const { data, isLoading, error } = useMe();
-  const { isLoggingOut } = useAuthStore();
-  const { logout } = useLogout();
+  const { isLoading: isMeLoading } = useMe();
+  const [selectedDate, setSelectedDate] = useState(() =>
+    formatDateToString(new Date())
+  );
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+    null
+  );
 
-  const handleLogout = () => {
-    logout('/sign-in');
+  // TODO: replace mock with useStaffDailyBookings(selectedDate) once API is ready
+  const bookings = MOCK_BOOKINGS;
+  const summary = getMockSummary(bookings);
+  const isLoading = false;
+  const error = null as Error | null;
+
+  const checkIn = useCheckInBooking({
+    onSuccess: () => {
+      toast.success('Customer checked in successfully');
+      setConfirmAction(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to check in');
+      setConfirmAction(null);
+    },
+  });
+
+  const complete = useCompleteBooking({
+    onSuccess: () => {
+      toast.success('Booking marked as complete');
+      setConfirmAction(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to complete booking');
+      setConfirmAction(null);
+    },
+  });
+
+  const noShow = useNoShowBooking({
+    onSuccess: () => {
+      toast.success('Booking marked as no-show');
+      setConfirmAction(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to mark no-show');
+      setConfirmAction(null);
+    },
+  });
+
+  const handleConfirm = () => {
+    if (!confirmAction) return;
+    const { type, booking } = confirmAction;
+
+    switch (type) {
+      case 'check-in':
+        checkIn.mutate(booking.id);
+        break;
+      case 'complete':
+        complete.mutate(booking.id);
+        break;
+      case 'no-show':
+        noShow.mutate({ bookingId: booking.id });
+        break;
+    }
   };
+
+  const isActionPending =
+    checkIn.isPending || complete.isPending || noShow.isPending;
+
+  if (isMeLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-sky-50">
+        <Spinner size="lg" className="text-sky-500" />
+      </div>
+    );
+  }
+
+  const dialogConfig = confirmAction
+    ? CONFIRM_CONFIG[confirmAction.type]
+    : null;
 
   return (
     <div className="min-h-screen bg-sky-50">
-      <header className="border-b border-sky-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-xl font-bold text-sky-900">
-              Salon Booking
-            </Link>
-            <span className="rounded-full bg-sky-100 px-2 py-1 text-xs font-medium text-sky-800">
-              Staff
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <UserButton />
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="cursor-pointer rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <StaffHeader />
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <h2 className="mb-6 text-2xl font-semibold text-sky-900">
-          Staff Dashboard
-        </h2>
+        <DateNavigation
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg bg-white p-6 shadow-md">
-            <h3 className="mb-2 text-lg font-medium text-sky-900">
-              Today&apos;s Bookings
-            </h3>
-            <p className="text-3xl font-bold text-sky-600">0</p>
-          </div>
+        <SummaryCards
+          total={summary.total}
+          checkedIn={summary.byStatus.CHECKED_IN ?? 0}
+          completed={summary.byStatus.DONE ?? 0}
+        />
 
-          <div className="rounded-lg bg-white p-6 shadow-md">
-            <h3 className="mb-2 text-lg font-medium text-sky-900">Pending</h3>
-            <p className="text-3xl font-bold text-yellow-600">0</p>
-          </div>
-
-          <div className="rounded-lg bg-white p-6 shadow-md">
-            <h3 className="mb-2 text-lg font-medium text-sky-900">
-              Completed
-            </h3>
-            <p className="text-3xl font-bold text-green-600">0</p>
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-lg bg-white p-6 shadow-md">
-          <h3 className="mb-4 text-lg font-medium text-sky-900">User Info</h3>
-
-          {isLoading && (
-            <div className="flex justify-center">
-              <Spinner className="text-sky-500" />
-            </div>
-          )}
-
-          {error && <p className="text-red-500">Error: {error.message}</p>}
-
-          {data && (
-            <pre className="overflow-auto rounded-lg bg-sky-50 p-4 text-sm text-slate-800">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          )}
-        </div>
+        <BookingList
+          bookings={bookings}
+          isLoading={isLoading}
+          error={error}
+          onCheckIn={(b) => setConfirmAction({ type: 'check-in', booking: b })}
+          onComplete={(b) => setConfirmAction({ type: 'complete', booking: b })}
+          onNoShow={(b) => setConfirmAction({ type: 'no-show', booking: b })}
+        />
       </main>
+
+      {confirmAction && dialogConfig && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setConfirmAction(null);
+          }}
+          title={dialogConfig.title}
+          description={getConfirmDescription(confirmAction)}
+          actionLabel={dialogConfig.actionLabel}
+          actionClass={dialogConfig.actionClass}
+          isPending={isActionPending}
+          onConfirm={handleConfirm}
+        />
+      )}
     </div>
   );
 }

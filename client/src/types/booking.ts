@@ -16,7 +16,9 @@ export type BookingStatus =
   | 'CHECKED_IN'
   | 'COMPLETED'
   | 'CANCELLED'
-  | 'EXPIRED';
+  | 'EXPIRED'
+  | 'DONE'
+  | 'NO_SHOW';
 
 export interface BookingService {
   id?: string;
