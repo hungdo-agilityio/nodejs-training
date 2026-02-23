@@ -101,7 +101,10 @@ const registerDependencies = (
   const slotController = new SlotController(slotService);
   container.registerValue(TOKENS.SlotController, slotController);
 
-  const bookingController = new BookingController(bookingBusinessService);
+  const bookingController = new BookingController(
+    bookingBusinessService,
+    stripeService
+  );
   container.registerValue(TOKENS.BookingController, bookingController);
 
   const paymentController = new PaymentController(

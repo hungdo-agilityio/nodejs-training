@@ -115,7 +115,7 @@ export class SlotService implements ISlotService {
       });
 
       // Calculate occupied count for each slot
-      const slotsWithAvailability = slots.map((slot) => {
+      let slotsWithAvailability = slots.map((slot) => {
         const occupied = this.calculateOccupiedCount(
           slot.startTime,
           date,
@@ -130,6 +130,24 @@ export class SlotService implements ISlotService {
           available: occupied < DEFAULT_CAPACITY,
         };
       });
+
+      // Mark past slots as unavailable for today
+      const now = new Date();
+      const isToday =
+        requestedDate.getFullYear() === now.getFullYear() &&
+        requestedDate.getMonth() === now.getMonth() &&
+        requestedDate.getDate() === now.getDate();
+
+      if (isToday) {
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        slotsWithAvailability = slotsWithAvailability.map((slot) => {
+          const [h, m] = slot.startTime.split(':').map(Number);
+          if (h * 60 + m <= currentMinutes) {
+            return { ...slot, available: false };
+          }
+          return slot;
+        });
+      }
 
       const response: SlotAvailabilityResponse = {
         date,

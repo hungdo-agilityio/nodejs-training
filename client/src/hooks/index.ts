@@ -7,3 +7,4 @@ export * from './use-get-bookings';
 export * from './use-get-booking';
 export * from './use-authorize-payment';
 export * from './use-create-payment-intent';
+export * from './use-cancel-booking';

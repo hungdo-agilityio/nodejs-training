@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { Request, Response } from 'express';
 import { IPaymentController } from './payment.controller.interface';
 import { IStripeService } from './stripe.service.interface';
@@ -152,13 +152,14 @@ export class PaymentController implements IPaymentController {
       return;
     }
 
-    // Generate deterministic idempotency key
+    // Generate idempotency key with a nonce to allow rebooking after cancellation
+    const nonce = randomBytes(8).toString('hex');
     const idempotencyData = JSON.stringify({
       userId: req.user.id,
       serviceIds: [...serviceIds].sort(),
       appointmentDate,
       appointmentTime,
-      date: new Date().toISOString().split('T')[0],
+      nonce,
     });
     const idempotencyKey = `pi_${createHash('sha256').update(idempotencyData).digest('hex').substring(0, 32)}`;
 

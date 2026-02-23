@@ -96,6 +96,29 @@ export class StripeService implements IStripeService {
     }
   }
 
+  async cancelPaymentIntent(
+    paymentIntentId: string
+  ): Promise<Result<Stripe.PaymentIntent, ApiError>> {
+    try {
+      const paymentIntent =
+        await this.stripe.paymentIntents.cancel(paymentIntentId);
+
+      return Result.ok(paymentIntent);
+    } catch (error) {
+      this.logger.error('Failed to cancel PaymentIntent', error as Error);
+
+      if (error instanceof Stripe.errors.StripeError) {
+        return Result.err(
+          ApiError.internalError(`Stripe error: ${error.message}`)
+        );
+      }
+
+      return Result.err(
+        ApiError.internalError('Failed to cancel payment intent')
+      );
+    }
+  }
+
   async createRefund(
     paymentIntentId: string,
     amount?: number

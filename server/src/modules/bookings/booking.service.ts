@@ -16,6 +16,7 @@ import {
   GetBookingsResult,
   BookingListItem,
   BookingDetail,
+  CancelBookingResult,
 } from './booking.service.interface';
 
 /**
@@ -120,6 +121,16 @@ export class BookingBusinessService implements IBookingService {
           ApiError.validationError(
             'Invalid time format. Use HH:MM (24-hour format)'
           )
+        );
+      }
+
+      // Reject past time slots
+      const appointmentDatetime = new Date(
+        `${appointmentDate}T${appointmentTime}:00`
+      );
+      if (appointmentDatetime <= new Date()) {
+        return Result.err(
+          ApiError.validationError('Cannot book a time slot in the past')
         );
       }
 
@@ -239,7 +250,22 @@ export class BookingBusinessService implements IBookingService {
       });
 
       if (existingBooking) {
-        return Result.err(ApiError.conflict('Booking already exists'));
+        const terminalStatuses: BookingStatus[] = [
+          BookingStatus.CANCELLED,
+          BookingStatus.DONE,
+          BookingStatus.NO_SHOW,
+          BookingStatus.PAYMENT_FAILED,
+        ];
+
+        if (terminalStatuses.includes(existingBooking.status)) {
+          // Free up the idempotency key so the user can rebook
+          await this.bookingRepository.update(
+            { id: existingBooking.id },
+            { idempotencyKey: `${idempotencyKey}_${existingBooking.id}` }
+          );
+        } else {
+          return Result.err(ApiError.conflict('Booking already exists'));
+        }
       }
 
       // 5. Create appointment datetime
@@ -610,6 +636,76 @@ export class BookingBusinessService implements IBookingService {
       return Result.err(
         ApiError.internalError('Failed to retrieve booking by payment intent')
       );
+    }
+  }
+
+  /**
+   * Cancel a booking
+   */
+  async cancelBooking(
+    bookingId: string,
+    userId: string
+  ): Promise<Result<CancelBookingResult, ApiError>> {
+    try {
+      const booking = await this.bookingRepository.findOne({
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      if (booking.userId !== userId) {
+        return Result.err(
+          ApiError.forbidden('You do not have access to this booking')
+        );
+      }
+
+      const cancellableStatuses: BookingStatus[] = [
+        BookingStatus.CONFIRMED,
+        BookingStatus.AUTHORIZED,
+        BookingStatus.PENDING_PAYMENT,
+      ];
+
+      if (!cancellableStatuses.includes(booking.status)) {
+        return Result.err(
+          ApiError.validationError(
+            `Booking cannot be cancelled in ${booking.status} status`
+          )
+        );
+      }
+
+      const now = new Date();
+      const cutoff = new Date(
+        new Date(booking.appointmentDatetime).getTime() - 15 * 60 * 1000
+      );
+
+      if (now >= cutoff) {
+        return Result.err(
+          ApiError.validationError(
+            'Booking can only be cancelled at least 15 minutes before the appointment time'
+          )
+        );
+      }
+
+      const cancelledAt = new Date();
+      await this.bookingRepository.update(
+        { id: bookingId },
+        { status: BookingStatus.CANCELLED, cancelledAt }
+      );
+
+      return Result.ok({
+        id: booking.id,
+        status: BookingStatus.CANCELLED,
+        previousStatus: booking.status,
+        paymentMethod: booking.paymentMethod,
+        cancelledAt: cancelledAt.toISOString(),
+        stripePaymentIntentId: booking.stripePaymentIntentId,
+        totalPrice: Number(booking.totalPrice),
+      });
+    } catch (error) {
+      this.logger.error('Failed to cancel booking', error as Error);
+      return Result.err(ApiError.internalError('Failed to cancel booking'));
     }
   }
 }

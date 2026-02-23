@@ -30,7 +30,14 @@ export interface IStripeService {
   ): Promise<Result<Stripe.PaymentIntent, ApiError>>;
 
   /**
-   * Create a refund for a payment (on cancellation)
+   * Cancel an uncaptured PaymentIntent (releases the hold)
+   */
+  cancelPaymentIntent(
+    paymentIntentId: string
+  ): Promise<Result<Stripe.PaymentIntent, ApiError>>;
+
+  /**
+   * Create a refund for a captured payment
    */
   createRefund(
     paymentIntentId: string,
