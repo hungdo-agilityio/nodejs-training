@@ -72,3 +72,18 @@ export const formatTime = (time: string): string => {
 
   return `${displayHour}:${m} ${ampm}`;
 };
+
+/**
+ * Compute end time by adding duration to appointment time
+ */
+export const computeEndsAt = (
+  appointmentTime: string,
+  durationMinutes: number
+): string => {
+  const [h, m] = appointmentTime.split(':').map(Number);
+  const totalMinutes = h * 60 + m + durationMinutes;
+  const endH = Math.floor(totalMinutes / 60) % 24;
+  const endM = totalMinutes % 60;
+
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+};

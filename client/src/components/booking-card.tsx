@@ -1,6 +1,7 @@
 import { StaffDailyBooking } from '@/types/staff';
 import { BookingStatus } from '@/types/booking';
 import { Button } from '@/ui/button';
+import { computeEndsAt, formatTime } from '@/utils';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   CONFIRMED: { label: 'Confirmed', className: 'bg-blue-100 text-blue-800' },
@@ -27,25 +28,6 @@ const PAYMENT_CONFIG: Record<string, { label: string; className: string }> = {
   STRIPE: { label: 'Card', className: 'bg-indigo-100 text-indigo-800' },
 };
 
-function formatTime(time: string): string {
-  const [h, m] = time.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:${m} ${ampm}`;
-}
-
-function computeEndsAt(
-  appointmentTime: string,
-  durationMinutes: number
-): string {
-  const [h, m] = appointmentTime.split(':').map(Number);
-  const totalMinutes = h * 60 + m + durationMinutes;
-  const endH = Math.floor(totalMinutes / 60) % 24;
-  const endM = totalMinutes % 60;
-  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-}
-
 interface BookingCardProps {
   booking: StaffDailyBooking;
   onCheckIn: () => void;
@@ -53,12 +35,12 @@ interface BookingCardProps {
   onNoShow: () => void;
 }
 
-export function BookingCard({
+export const BookingCard = ({
   booking,
   onCheckIn,
   onComplete,
   onNoShow,
-}: BookingCardProps) {
+}: BookingCardProps) => {
   const statusConfig = STATUS_CONFIG[booking.status] ?? {
     label: booking.status,
     className: 'bg-gray-100 text-gray-800',
@@ -153,4 +135,4 @@ export function BookingCard({
       </div>
     </div>
   );
-}
+};
