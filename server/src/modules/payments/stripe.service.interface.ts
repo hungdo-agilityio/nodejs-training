@@ -5,9 +5,12 @@ import { ApiError } from '@shared/errors';
 export interface CreatePaymentIntentParams {
   amount: number;
   currency: string;
-  bookingId: string;
+  bookingId?: string;
   userId: string;
   idempotencyKey: string; // From client to prevent duplicate charges
+  serviceIds?: string[];
+  appointmentDate?: string;
+  appointmentTime?: string;
 }
 
 export interface IStripeService {

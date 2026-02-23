@@ -5,9 +5,14 @@ import { IWebhookController } from './webhook.controller.interface';
 
 export function createPaymentRoutes(controller: IPaymentController): Router {
   const router = Router();
+
   router.post('/authorize', (req, res) =>
     controller.authorizePayment(req, res)
   );
+  router.post('/create-intent', (req, res) =>
+    controller.createPaymentIntent(req, res)
+  );
+
   return router;
 }
 

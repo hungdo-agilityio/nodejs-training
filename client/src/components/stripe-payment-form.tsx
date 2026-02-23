@@ -77,7 +77,7 @@ export function StripePaymentForm({
           disabled={isProcessing}
           className="flex-1"
         >
-          Cancel
+          Back
         </Button>
         <Button
           type="submit"

@@ -3,7 +3,12 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { useAvailableSlots, useServices, useCreateBooking } from '@/hooks';
+import {
+  useAvailableSlots,
+  useServices,
+  useCreateBooking,
+  useCreatePaymentIntent,
+} from '@/hooks';
 import { ServiceStep } from '@/components/booking-steps/service-step';
 import { DateTimeStep } from '@/components/booking-steps/datetime-step';
 import { ReviewStep } from '@/components/booking-steps/review-step';
@@ -23,32 +28,42 @@ export default function NewBookingPage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
+    null
+  );
   const [step, setStep] = useState<
     'services' | 'datetime' | 'review' | 'payment' | 'stripe-payment'
   >('services');
-  const [createdBooking, setCreatedBooking] = useState<{
-    id: string;
-    idempotencyKey: string;
+
+  // Card flow state: store payment intent info after Stripe payment
+  const [paymentIntentData, setPaymentIntentData] = useState<{
+    clientSecret: string;
+    paymentIntentId: string;
   } | null>(null);
 
   const { data: services } = useServices();
+
+  const createPaymentIntent = useCreatePaymentIntent({
+    onSuccess: (data) => {
+      setPaymentIntentData({
+        clientSecret: data.clientSecret,
+        paymentIntentId: data.paymentIntentId,
+      });
+      setStep('stripe-payment');
+    },
+    onError: (error) => {
+      toast.error('Failed to initialize payment', {
+        description: error.message || 'Please try again later',
+      });
+    },
+  });
+
   const createBooking = useCreateBooking({
     onSuccess: (booking) => {
-      // If cash payment, redirect immediately
-      if (paymentMethod === 'CASH') {
-        toast.success('Booking created successfully!', {
-          description: `Your appointment is confirmed for ${booking.appointmentDate} at ${formatTimeForDisplay(booking.appointmentTime)}`,
-        });
-        router.push(`/bookings/${booking.id}`);
-      } else {
-        // For Stripe payment, store booking and show payment step
-        setCreatedBooking({
-          id: booking.id,
-          idempotencyKey: booking.idempotencyKey,
-        });
-        setStep('stripe-payment');
-      }
+      toast.success('Booking created successfully!', {
+        description: `Your appointment is confirmed for ${booking.appointmentDate} at ${formatTimeForDisplay(booking.appointmentTime)}`,
+      });
+      router.push(`/bookings/${booking.id}`);
     },
     onError: (error) => {
       toast.error('Failed to create booking', {
@@ -123,11 +138,40 @@ export default function NewBookingPage() {
       return;
     }
 
+    if (paymentMethod === 'CASH') {
+      // Cash flow: create booking immediately
+      return createBooking.mutate({
+        serviceIds: selectedServiceIds,
+        appointmentDate: selectedDate,
+        appointmentTime: selectedTime,
+        paymentMethod,
+      });
+    }
+
+    // Card flow: if we already have a payment intent, reuse it
+    if (paymentIntentData) {
+      setStep('stripe-payment');
+      return;
+    }
+
+    // Create payment intent first
+    createPaymentIntent.mutate({
+      serviceIds: selectedServiceIds,
+      appointmentDate: selectedDate,
+      appointmentTime: selectedTime,
+    });
+  };
+
+  const handleStripePaymentSuccess = () => {
+    if (!selectedDate || !selectedTime || !paymentIntentData) return;
+
+    // After successful Stripe payment, create the booking
     createBooking.mutate({
       serviceIds: selectedServiceIds,
       appointmentDate: selectedDate,
       appointmentTime: selectedTime,
-      paymentMethod: paymentMethod,
+      paymentMethod: 'STRIPE',
+      stripePaymentIntentId: paymentIntentData.paymentIntentId,
     });
   };
 
@@ -140,7 +184,10 @@ export default function NewBookingPage() {
 
   const getStepIndex = (stepId: string) =>
     steps.findIndex((s) => s.id === stepId);
-  const currentStepIndex = getStepIndex(step);
+
+  const currentStepIndex = getStepIndex(
+    step === 'stripe-payment' ? 'payment' : step
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
@@ -148,7 +195,9 @@ export default function NewBookingPage() {
       <div className="mb-4 rounded-xl bg-white p-4 shadow-xl sm:mb-6 sm:p-6">
         <div className="flex items-center justify-center gap-1.5 sm:gap-3">
           {steps.map((stepItem, index) => {
-            const isActive = step === stepItem.id;
+            const isActive =
+              step === stepItem.id ||
+              (step === 'stripe-payment' && stepItem.id === 'payment');
             const isCompleted = index < currentStepIndex;
 
             return (
@@ -248,28 +297,27 @@ export default function NewBookingPage() {
           {step === 'payment' && (
             <PaymentStep
               paymentMethod={paymentMethod}
-              onSelectPayment={setPaymentMethod}
+              onSelectPayment={(method) => {
+                setPaymentMethod(method);
+                // Clear stale payment intent if user switches away from card
+                if (paymentIntentData && method !== 'STRIPE') {
+                  setPaymentIntentData(null);
+                }
+              }}
               onBack={handleBackToReview}
               onConfirm={handleConfirmBooking}
-              isLoading={createBooking.isPending}
+              isLoading={
+                createBooking.isPending || createPaymentIntent.isPending
+              }
             />
           )}
 
-          {step === 'stripe-payment' && createdBooking && (
+          {step === 'stripe-payment' && paymentIntentData && (
             <StripeCheckout
-              bookingId={createdBooking.id}
-              idempotencyKey={createdBooking.idempotencyKey}
-              onSuccess={() => {
-                toast.success('Payment successful!', {
-                  description: 'Your booking has been confirmed',
-                });
-                router.push(`/bookings/${createdBooking.id}`);
-              }}
+              clientSecret={paymentIntentData.clientSecret}
+              onSuccess={handleStripePaymentSuccess}
               onCancel={() => {
-                toast.info('Payment cancelled', {
-                  description: 'You can complete payment later from your bookings',
-                });
-                router.push(`/bookings/${createdBooking.id}`);
+                setStep('payment');
               }}
             />
           )}

@@ -90,11 +90,7 @@ export class WebhookController implements IWebhookController {
     const bookingId = paymentIntent.metadata.bookingId;
 
     if (!bookingId) {
-      return Result.err(
-        ApiError.validationError(
-          `PaymentIntent ${paymentIntent.id} missing bookingId in metadata`
-        )
-      );
+      return Result.ok(undefined);
     }
 
     return this.bookingService.updateBookingStatus(
@@ -109,11 +105,7 @@ export class WebhookController implements IWebhookController {
     const bookingId = paymentIntent.metadata.bookingId;
 
     if (!bookingId) {
-      return Result.err(
-        ApiError.validationError(
-          `PaymentIntent ${paymentIntent.id} missing bookingId in metadata`
-        )
-      );
+      return Result.ok(undefined);
     }
 
     return this.bookingService.updateBookingStatus(

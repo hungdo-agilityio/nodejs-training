@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { Request, Response } from 'express';
 import { IPaymentController } from './payment.controller.interface';
 import { IStripeService } from './stripe.service.interface';
@@ -91,6 +92,100 @@ export class PaymentController implements IPaymentController {
       data: {
         clientSecret: paymentIntent.client_secret,
         amount: paymentIntent.amount / 100, // Convert back to dollars
+        currency: paymentIntent.currency,
+      },
+    });
+  }
+
+  async createPaymentIntent(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      const error = ApiError.unauthorized('Authentication required');
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const { serviceIds, appointmentDate, appointmentTime } = req.body;
+
+    // Validate required fields
+    if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+      const error = ApiError.validationError(
+        'serviceIds is required and must be a non-empty array'
+      );
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    if (!appointmentDate) {
+      const error = ApiError.validationError('appointmentDate is required');
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    if (!appointmentTime) {
+      const error = ApiError.validationError('appointmentTime is required');
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    // Validate services and calculate total price
+    const validationResult =
+      await this.bookingService.validateServicesAndCalculateTotals(serviceIds);
+
+    if (validationResult.isErr()) {
+      const error = validationResult.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const { totalPrice, totalDurationMinutes } = validationResult.getValue();
+
+    // Check capacity availability
+    const capacityResult = await this.bookingService.checkCapacityAvailability(
+      appointmentDate,
+      appointmentTime,
+      totalDurationMinutes
+    );
+
+    if (capacityResult.isErr()) {
+      const error = capacityResult.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    // Generate deterministic idempotency key
+    const idempotencyData = JSON.stringify({
+      userId: req.user.id,
+      serviceIds: [...serviceIds].sort(),
+      appointmentDate,
+      appointmentTime,
+      date: new Date().toISOString().split('T')[0],
+    });
+    const idempotencyKey = `pi_${createHash('sha256').update(idempotencyData).digest('hex').substring(0, 32)}`;
+
+    // Create Stripe PaymentIntent
+    const paymentIntentResult = await this.stripeService.createPaymentIntent({
+      amount: totalPrice,
+      currency: 'usd',
+      userId: req.user.id,
+      idempotencyKey,
+      serviceIds,
+      appointmentDate,
+      appointmentTime,
+    });
+
+    if (paymentIntentResult.isErr()) {
+      const error = paymentIntentResult.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const paymentIntent = paymentIntentResult.getValue();
+
+    res.status(200).json({
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount / 100,
         currency: paymentIntent.currency,
       },
     });
