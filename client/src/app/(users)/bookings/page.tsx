@@ -30,6 +30,8 @@ const statusColors: Record<BookingStatus, string> = {
   COMPLETED: 'bg-gray-100 text-gray-700',
   CANCELLED: 'bg-red-100 text-red-700',
   EXPIRED: 'bg-gray-100 text-gray-500',
+  DONE: 'bg-green-100 text-green-700',
+  NO_SHOW: 'bg-gray-100 text-gray-700',
 };
 
 const statusLabels: Record<BookingStatus, string> = {
@@ -40,6 +42,8 @@ const statusLabels: Record<BookingStatus, string> = {
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
   EXPIRED: 'Expired',
+  DONE: 'Done',
+  NO_SHOW: 'No Show',
 };
 
 type SortOption = 'upcoming' | 'recent' | 'past';

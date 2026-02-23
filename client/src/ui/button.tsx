@@ -19,6 +19,13 @@ const buttonVariants = cva(
           'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
+        'sky-outline':
+          'border border-sky-200 bg-white text-sky-700 shadow-sm hover:bg-sky-50',
+        'staff-danger': 'bg-red-500 text-white shadow-sm hover:bg-red-600',
+        'check-in': 'bg-blue-600 text-white shadow-sm hover:bg-blue-700',
+        complete: 'bg-green-600 text-white shadow-sm hover:bg-green-700',
+        'no-show':
+          'border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50',
       },
       size: {
         default: 'h-9 px-4 py-2',
