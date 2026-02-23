@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useMe } from '@/hooks';
-import { useCheckInBooking } from '@/hooks/use-check-in-booking';
-import { useCompleteBooking } from '@/hooks/use-complete-booking';
-import { useNoShowBooking } from '@/hooks/use-no-show-booking';
-import { Spinner } from '@/components';
+import {
+  useMe,
+  useCheckInBooking,
+  useCompleteBooking,
+  useNoShowBooking,
+} from '@/hooks';
+import {
+  Spinner,
+  StaffHeader,
+  DateNavigation,
+  SummaryCards,
+  BookingList,
+  ConfirmDialog,
+} from '@/components';
 import { StaffDailyBooking } from '@/types/staff';
-import { StaffHeader } from './_components/staff-header';
-import { DateNavigation } from './_components/date-navigation';
-import { SummaryCards } from './_components/summary-cards';
-import { BookingList } from './_components/booking-list';
-import { ConfirmDialog } from './_components/confirm-dialog';
 import { MOCK_BOOKINGS, getMockSummary } from './_components/mock-data';
 import { formatDateToString, formatTime } from '@/utils';
 
@@ -39,8 +43,7 @@ const CONFIRM_CONFIG = {
   },
 } as const;
 
-function getConfirmDescription(action: ConfirmAction): string {
-  const { type, booking } = action;
+const getConfirmDescription = ({ type, booking }: ConfirmAction): string => {
   const name = booking.customer.name;
   const time = formatTime(booking.appointmentTime);
 
@@ -52,7 +55,7 @@ function getConfirmDescription(action: ConfirmAction): string {
     case 'no-show':
       return `Mark ${name} as a no-show for their ${time} appointment?`;
   }
-}
+};
 
 export default function StaffDashboard() {
   const { isLoading: isMeLoading } = useMe();

@@ -9,23 +9,7 @@ import {
 import { Button } from '@/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover';
 import { Calendar } from '@/ui/calendar';
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+import { formatDateToString, formatDisplayDate } from '@/utils';
 
 interface DateNavigationProps {
   selectedDate: string;
@@ -38,28 +22,28 @@ export function DateNavigation({
 }: DateNavigationProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const isToday = selectedDate === formatDate(new Date());
+  const isToday = selectedDate === formatDateToString(new Date());
   const selectedDateObj = new Date(selectedDate + 'T00:00:00');
 
   const goToPrevDay = () => {
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() - 1);
-    onDateChange(formatDate(d));
+    onDateChange(formatDateToString(d));
   };
 
   const goToNextDay = () => {
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + 1);
-    onDateChange(formatDate(d));
+    onDateChange(formatDateToString(d));
   };
 
   const goToToday = () => {
-    onDateChange(formatDate(new Date()));
+    onDateChange(formatDateToString(new Date()));
   };
 
   const handleCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      onDateChange(formatDate(date));
+      onDateChange(formatDateToString(date));
       setCalendarOpen(false);
     }
   };
