@@ -18,7 +18,23 @@ export class StripeService implements IStripeService {
     params: CreatePaymentIntentParams
   ): Promise<Result<Stripe.PaymentIntent, ApiError>> {
     try {
-      const { amount, currency, bookingId, userId, idempotencyKey } = params;
+      const {
+        amount,
+        currency,
+        bookingId,
+        userId,
+        idempotencyKey,
+        serviceIds,
+        appointmentDate,
+        appointmentTime,
+      } = params;
+
+      // Build metadata
+      const metadata: Record<string, string> = { userId };
+      if (bookingId) metadata.bookingId = bookingId;
+      if (serviceIds) metadata.serviceIds = JSON.stringify(serviceIds);
+      if (appointmentDate) metadata.appointmentDate = appointmentDate;
+      if (appointmentTime) metadata.appointmentTime = appointmentTime;
 
       // Create PaymentIntent with manual capture
       const paymentIntent = await this.stripe.paymentIntents.create(
@@ -26,19 +42,12 @@ export class StripeService implements IStripeService {
           amount: Math.round(amount * 100), // Convert to cents
           currency: currency.toLowerCase(),
           capture_method: 'manual', // Authorize now, capture on check-in
-          metadata: {
-            bookingId,
-            userId,
-          },
+          metadata,
         },
         {
           // Use client-provided idempotency key to prevent duplicate charges
           idempotencyKey,
         }
-      );
-
-      this.logger.info(
-        `PaymentIntent created: ${paymentIntent.id} for booking ${bookingId}`
       );
 
       return Result.ok(paymentIntent);

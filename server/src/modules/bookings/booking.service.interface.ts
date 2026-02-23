@@ -10,6 +10,7 @@ export interface CreateBookingDTO {
   appointmentTime: string; // HH:MM
   paymentMethod: PaymentMethod;
   notes?: string;
+  stripePaymentIntentId?: string;
 }
 
 export interface BookingValidationResult {

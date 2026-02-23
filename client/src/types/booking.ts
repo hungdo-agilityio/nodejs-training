@@ -6,6 +6,7 @@ export interface CreateBookingRequest {
   appointmentTime: string; // HH:MM (24-hour format)
   paymentMethod: PaymentMethod;
   notes?: string;
+  stripePaymentIntentId?: string;
 }
 
 export type BookingStatus =

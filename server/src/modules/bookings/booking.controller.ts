@@ -20,6 +20,7 @@ export class BookingController implements IBookingController {
       appointmentTime,
       paymentMethod,
       notes,
+      stripePaymentIntentId,
     } = req.body;
 
     // Validate required fields
@@ -32,17 +33,13 @@ export class BookingController implements IBookingController {
     }
 
     if (!appointmentDate) {
-      const error = ApiError.validationError(
-        'appointmentDate is required'
-      );
+      const error = ApiError.validationError('appointmentDate is required');
       res.status(error.statusCode).json(error.toJSON());
       return;
     }
 
     if (!appointmentTime) {
-      const error = ApiError.validationError(
-        'appointmentTime is required'
-      );
+      const error = ApiError.validationError('appointmentTime is required');
       res.status(error.statusCode).json(error.toJSON());
       return;
     }
@@ -61,6 +58,15 @@ export class BookingController implements IBookingController {
       return;
     }
 
+    // Validate stripePaymentIntentId for STRIPE payments
+    if (paymentMethod === 'STRIPE' && !stripePaymentIntentId) {
+      const error = ApiError.validationError(
+        'stripePaymentIntentId is required for STRIPE payments'
+      );
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
     const result = await this.bookingService.createBooking({
       userId: req.user.id,
       serviceIds,
@@ -68,6 +74,7 @@ export class BookingController implements IBookingController {
       appointmentTime,
       paymentMethod: paymentMethod as PaymentMethod,
       notes,
+      stripePaymentIntentId,
     });
 
     if (result.isErr()) {
@@ -161,7 +168,10 @@ export class BookingController implements IBookingController {
 
     const { id } = req.params;
 
-    const result = await this.bookingService.getBookingById(id, req.user.id);
+    const result = await this.bookingService.getBookingById(
+      id as string,
+      req.user.id
+    );
 
     if (result.isErr()) {
       const error = result.getError();
