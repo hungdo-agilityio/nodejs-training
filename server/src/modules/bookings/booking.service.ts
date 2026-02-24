@@ -5,6 +5,7 @@ import { Result } from '@shared/utils';
 import { DEFAULT_CAPACITY } from '@shared/constants/business-hours';
 import { ApiError } from '@shared/errors';
 import { Service } from '@modules/services/entities/service.entity';
+import { IStripeService } from '@modules/payments/stripe.service.interface';
 import { Booking } from './entities/booking.entity';
 import { BookingService as BookingServiceEntity } from './entities/booking-service.entity';
 import {
@@ -20,6 +21,7 @@ import {
   GetDailyBookingsResult,
   DailyBookingItem,
   DailyBookingsSummary,
+  CheckInBookingResult,
 } from './booking.service.interface';
 
 /**
@@ -36,6 +38,7 @@ export class BookingBusinessService implements IBookingService {
     private bookingRepository: Repository<Booking>,
     private bookingServiceRepository: Repository<BookingServiceEntity>,
     private serviceRepository: Repository<Service>,
+    private stripeService: IStripeService,
     private logger: ILogger
   ) {}
 
@@ -798,6 +801,84 @@ export class BookingBusinessService implements IBookingService {
       return Result.err(
         ApiError.internalError('Failed to retrieve daily bookings')
       );
+    }
+  }
+
+  /**
+   * Check in a booking (staff only)
+   */
+  async checkInBooking(
+    bookingId: string
+  ): Promise<Result<CheckInBookingResult, ApiError>> {
+    try {
+      // Get booking
+      const booking = await this.bookingRepository.findOne({
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      // Validate status based on payment method
+      if (
+        booking.paymentMethod === PaymentMethod.CASH &&
+        booking.status !== BookingStatus.CONFIRMED
+      ) {
+        return Result.err(
+          ApiError.validationError(
+            `Cannot check in cash booking with status ${booking.status}. Must be CONFIRMED.`
+          )
+        );
+      }
+
+      if (
+        booking.paymentMethod === PaymentMethod.STRIPE &&
+        booking.status !== BookingStatus.AUTHORIZED
+      ) {
+        return Result.err(
+          ApiError.validationError(
+            `Cannot check in card booking with status ${booking.status}. Must be AUTHORIZED.`
+          )
+        );
+      }
+
+      // For Stripe payments, capture the payment
+      if (
+        booking.paymentMethod === PaymentMethod.STRIPE &&
+        booking.stripePaymentIntentId
+      ) {
+        const captureResult = await this.stripeService.capturePayment(
+          booking.stripePaymentIntentId
+        );
+
+        if (captureResult.isErr()) {
+          return Result.err(
+            ApiError.internalError(
+              'Failed to capture payment. Check-in cancelled.'
+            )
+          );
+        }
+      }
+
+      // Update booking status to CHECKED_IN
+      const checkedInAt = new Date();
+      await this.bookingRepository.update(
+        { id: bookingId },
+        {
+          status: BookingStatus.CHECKED_IN,
+          checkedInAt,
+        }
+      );
+
+      return Result.ok({
+        id: booking.id,
+        status: BookingStatus.CHECKED_IN,
+        checkedInAt: checkedInAt.toISOString(),
+      });
+    } catch (error) {
+      this.logger.error('Failed to check in booking', error as Error);
+      return Result.err(ApiError.internalError('Failed to check in booking'));
     }
   }
 }

@@ -333,6 +333,61 @@ export function createBookingRoutes(controller: IBookingController): Router {
     (req, res) => controller.getDailyBookings(req, res)
   );
 
+  /**
+   * @openapi
+   * /bookings/{id}/check-in:
+   *   post:
+   *     summary: Check in a booking
+   *     description: Check in a customer for their appointment. For card payments, captures the payment. Requires STAFF or ADMIN role.
+   *     tags:
+   *       - Staff Operations
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Booking ID
+   *     responses:
+   *       200:
+   *         description: Booking checked in successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       format: uuid
+   *                     status:
+   *                       type: string
+   *                       enum: [CHECKED_IN]
+   *                     checkedInAt:
+   *                       type: string
+   *                       format: date-time
+   *       400:
+   *         description: Bad request - invalid status or validation error
+   *       404:
+   *         description: Booking not found
+   *       401:
+   *         description: Unauthorized - authentication required
+   *       403:
+   *         description: Forbidden - insufficient permissions (requires STAFF or ADMIN role)
+   *       500:
+   *         description: Internal server error - payment capture failed
+   */
+  router.post(
+    '/:id/check-in',
+    createRequireRole(UserRole.STAFF, UserRole.ADMIN),
+    (req, res) => controller.checkInBooking(req, res)
+  );
+
   router.get('/', (req, res) => controller.getBookings(req, res));
   router.get('/:id', (req, res) => controller.getBookingById(req, res));
   router.post('/', (req, res) => controller.createBooking(req, res));
