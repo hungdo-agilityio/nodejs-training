@@ -99,6 +99,41 @@ export interface CancelBookingResult {
   totalPrice: number;
 }
 
+export interface DailyBookingItem {
+  id: string;
+  customer: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+    phoneNumber: string | null;
+  };
+  services: Array<{
+    id: string;
+    name: string;
+    price: number;
+    durationMinutes: number;
+  }>;
+  appointmentTime: string;
+  status: BookingStatus;
+  paymentMethod: PaymentMethod;
+  totalPrice: number;
+  totalDurationMinutes: number;
+  notes: string | null;
+}
+
+export interface DailyBookingsSummary {
+  totalBookings: number;
+  totalRevenue: number;
+  byStatus: Record<BookingStatus, number>;
+}
+
+export interface GetDailyBookingsResult {
+  data: DailyBookingItem[];
+  summary: DailyBookingsSummary;
+  date: string;
+}
+
 export interface IBookingService {
   /**
    * Validate services and calculate totals
@@ -173,4 +208,11 @@ export interface IBookingService {
     bookingId: string,
     userId: string
   ): Promise<Result<CancelBookingResult, ApiError>>;
+
+  /**
+   * Get all bookings for a specific date (staff only)
+   */
+  getDailyBookings(
+    date: string
+  ): Promise<Result<GetDailyBookingsResult, ApiError>>;
 }

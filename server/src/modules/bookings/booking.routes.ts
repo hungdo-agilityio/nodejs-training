@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { IBookingController } from './booking.controller.interface';
+import { createRequireRole } from '@shared/middleware';
+import { UserRole } from '@shared/types';
 
 export function createBookingRoutes(controller: IBookingController): Router {
   const router = Router();
@@ -223,6 +225,114 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *       401:
    *         description: Unauthorized - authentication required
    */
+  /**
+   * @openapi
+   * /bookings/daily:
+   *   get:
+   *     summary: Get daily bookings for staff
+   *     description: Retrieves all bookings for a specific date with customer info and summary. Requires STAFF or ADMIN role.
+   *     tags:
+   *       - Staff Operations
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: date
+   *         schema:
+   *           type: string
+   *           format: date
+   *           example: "2026-02-24"
+   *         description: Target date (YYYY-MM-DD). Defaults to today if not provided.
+   *     responses:
+   *       200:
+   *         description: Daily bookings retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       id:
+   *                         type: string
+   *                         format: uuid
+   *                       customer:
+   *                         type: object
+   *                         properties:
+   *                           id:
+   *                             type: string
+   *                           firstName:
+   *                             type: string
+   *                           lastName:
+   *                             type: string
+   *                           email:
+   *                             type: string
+   *                           phoneNumber:
+   *                             type: string
+   *                             nullable: true
+   *                       services:
+   *                         type: array
+   *                         items:
+   *                           type: object
+   *                           properties:
+   *                             id:
+   *                               type: string
+   *                             name:
+   *                               type: string
+   *                             price:
+   *                               type: number
+   *                             durationMinutes:
+   *                               type: integer
+   *                       appointmentTime:
+   *                         type: string
+   *                         example: "14:30"
+   *                       status:
+   *                         type: string
+   *                         enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, EXPIRED]
+   *                       paymentMethod:
+   *                         type: string
+   *                         enum: [CASH, STRIPE]
+   *                       totalPrice:
+   *                         type: number
+   *                       totalDurationMinutes:
+   *                         type: integer
+   *                       notes:
+   *                         type: string
+   *                         nullable: true
+   *                 summary:
+   *                   type: object
+   *                   properties:
+   *                     totalBookings:
+   *                       type: integer
+   *                       description: Total number of bookings for the day
+   *                     totalRevenue:
+   *                       type: number
+   *                       description: Total revenue from confirmed/checked-in/completed bookings
+   *                     byStatus:
+   *                       type: object
+   *                       description: Breakdown of bookings by status
+   *                       additionalProperties:
+   *                         type: integer
+   *                 date:
+   *                   type: string
+   *                   format: date
+   *                   description: The date for which bookings were retrieved
+   *       400:
+   *         description: Bad request - invalid date format
+   *       401:
+   *         description: Unauthorized - authentication required
+   *       403:
+   *         description: Forbidden - insufficient permissions (requires STAFF or ADMIN role)
+   */
+  router.get(
+    '/daily',
+    createRequireRole(UserRole.STAFF, UserRole.ADMIN),
+    (req, res) => controller.getDailyBookings(req, res)
+  );
+
   router.get('/', (req, res) => controller.getBookings(req, res));
   router.get('/:id', (req, res) => controller.getBookingById(req, res));
   router.post('/', (req, res) => controller.createBooking(req, res));

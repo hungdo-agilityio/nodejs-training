@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   useMe,
+  useStaffDailyBookings,
   useCheckInBooking,
   useCompleteBooking,
   useNoShowBooking,
@@ -17,7 +18,6 @@ import {
   ConfirmDialog,
 } from '@/components';
 import { StaffDailyBooking } from '@/types/staff';
-import { MOCK_BOOKINGS, getMockSummary } from './_components/mock-data';
 import { formatDateToString, formatTime } from '@/utils';
 
 type ConfirmAction = {
@@ -66,16 +66,26 @@ export default function StaffDashboard() {
     null
   );
 
-  // TODO: replace mock with useStaffDailyBookings(selectedDate) once API is ready
-  const bookings = MOCK_BOOKINGS;
-  const summary = getMockSummary(bookings);
-  const isLoading = false;
-  const error = null as Error | null;
+  const {
+    data: dailyData,
+    isLoading,
+    error,
+    refetch,
+  } = useStaffDailyBookings(selectedDate);
+
+  const bookings = dailyData?.bookings ?? [];
+  const summary = dailyData?.summary ?? {
+    total: 0,
+    byStatus: {} as Record<string, number>,
+    byPaymentMethod: {} as Record<string, number>,
+    totalRevenue: 0,
+  };
 
   const checkIn = useCheckInBooking({
     onSuccess: () => {
       toast.success('Customer checked in successfully');
       setConfirmAction(null);
+      refetch();
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to check in');
@@ -87,6 +97,7 @@ export default function StaffDashboard() {
     onSuccess: () => {
       toast.success('Booking marked as complete');
       setConfirmAction(null);
+      refetch();
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to complete booking');
@@ -98,6 +109,7 @@ export default function StaffDashboard() {
     onSuccess: () => {
       toast.success('Booking marked as no-show');
       setConfirmAction(null);
+      refetch();
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to mark no-show');
@@ -149,8 +161,12 @@ export default function StaffDashboard() {
 
         <SummaryCards
           total={summary.total}
-          checkedIn={summary.byStatus.CHECKED_IN ?? 0}
-          completed={summary.byStatus.DONE ?? 0}
+          checkedIn={
+            (summary.byStatus as Record<string, number>)?.['CHECKED_IN'] ?? 0
+          }
+          completed={
+            (summary.byStatus as Record<string, number>)?.['DONE'] ?? 0
+          }
         />
 
         <BookingList
