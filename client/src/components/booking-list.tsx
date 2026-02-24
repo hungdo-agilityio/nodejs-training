@@ -43,9 +43,36 @@ export function BookingList({
     );
   }
 
-  const sorted = [...bookings].sort((a, b) =>
-    a.appointmentTime.localeCompare(b.appointmentTime)
-  );
+  // Check if booking is overdue
+  const isBookingOverdue = (booking: StaffDailyBooking): boolean => {
+    // Only consider CONFIRMED or AUTHORIZED bookings as potentially overdue
+    const overdueStatuses = ['CONFIRMED', 'AUTHORIZED'];
+    if (!overdueStatuses.includes(booking.status)) {
+      return false;
+    }
+
+    // Parse appointment time (HH:MM format)
+    const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
+    const now = new Date();
+    const appointmentDateTime = new Date();
+    appointmentDateTime.setHours(hours, minutes, 0, 0);
+
+    // Booking is overdue if appointment time has passed
+    return now > appointmentDateTime;
+  };
+
+  // Sort: overdue first, then by appointment time
+  const sorted = [...bookings].sort((a, b) => {
+    const aOverdue = isBookingOverdue(a);
+    const bOverdue = isBookingOverdue(b);
+
+    // Overdue bookings come first
+    if (aOverdue && !bOverdue) return -1;
+    if (!aOverdue && bOverdue) return 1;
+
+    // Within same overdue status, sort by time
+    return a.appointmentTime.localeCompare(b.appointmentTime);
+  });
 
   return (
     <div className="space-y-4">
@@ -56,6 +83,7 @@ export function BookingList({
           onCheckIn={() => onCheckIn(booking)}
           onComplete={() => onComplete(booking)}
           onNoShow={() => onNoShow(booking)}
+          isOverdue={isBookingOverdue(booking)}
         />
       ))}
     </div>

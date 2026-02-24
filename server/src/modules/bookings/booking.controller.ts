@@ -223,13 +223,19 @@ export class BookingController implements IBookingController {
   }
 
   async getDailyBookings(req: Request, res: Response): Promise<void> {
-    const { date } = req.query;
+    const { date, exclude_completed } = req.query;
 
     // Default to today if no date provided
     const targetDate =
       (date as string) || new Date().toISOString().split('T')[0];
 
-    const result = await this.bookingService.getDailyBookings(targetDate);
+    // Parse exclude_completed parameter (default to false)
+    const excludeCompleted = exclude_completed === 'true';
+
+    const result = await this.bookingService.getDailyBookings(
+      targetDate,
+      excludeCompleted
+    );
 
     if (result.isErr()) {
       const error = result.getError();
@@ -244,6 +250,34 @@ export class BookingController implements IBookingController {
     const { id } = req.params;
 
     const result = await this.bookingService.checkInBooking(id as string);
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    res.json({ data: result.getValue() });
+  }
+
+  async completeBooking(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+
+    const result = await this.bookingService.completeBooking(id as string);
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    res.json({ data: result.getValue() });
+  }
+
+  async noShowBooking(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+
+    const result = await this.bookingService.noShowBooking(id as string);
 
     if (result.isErr()) {
       const error = result.getError();

@@ -62,19 +62,25 @@ export default function StaffDashboard() {
   const [selectedDate, setSelectedDate] = useState(() =>
     formatDateToString(new Date())
   );
+  const [excludeCompleted, setExcludeCompleted] = useState(true);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
     null
   );
 
+  // Fetch filtered bookings for the list
   const {
-    data: dailyData,
+    data: filteredData,
     isLoading,
     error,
     refetch,
-  } = useStaffDailyBookings(selectedDate);
+  } = useStaffDailyBookings(selectedDate, excludeCompleted);
 
-  const bookings = dailyData?.bookings ?? [];
-  const summary = dailyData?.summary ?? {
+  // Fetch full stats for summary (always unfiltered)
+  const { data: fullData } = useStaffDailyBookings(selectedDate, false);
+
+  const bookings = filteredData?.bookings ?? [];
+  // Use full data for summary to always show complete picture
+  const summary = fullData?.summary ?? {
     total: 0,
     byStatus: {} as Record<string, number>,
     byPaymentMethod: {} as Record<string, number>,
@@ -129,7 +135,7 @@ export default function StaffDashboard() {
         complete.mutate(booking.id);
         break;
       case 'no-show':
-        noShow.mutate({ bookingId: booking.id });
+        noShow.mutate(booking.id);
         break;
     }
   };
@@ -158,6 +164,21 @@ export default function StaffDashboard() {
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
         />
+
+        {/* Filter Toggle */}
+        <div className="mb-6 flex items-center justify-end">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm transition-colors hover:bg-sky-50">
+            <input
+              type="checkbox"
+              checked={excludeCompleted}
+              onChange={(e) => setExcludeCompleted(e.target.checked)}
+              className="h-4 w-4 cursor-pointer rounded border-gray-300 text-sky-600 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+            />
+            <span className="text-sm font-medium text-slate-700 select-none">
+              Show active bookings only
+            </span>
+          </label>
+        </div>
 
         <SummaryCards
           total={summary.total}

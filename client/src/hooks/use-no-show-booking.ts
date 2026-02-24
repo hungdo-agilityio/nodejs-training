@@ -11,13 +11,8 @@ interface NoShowApiResponse {
   data: NoShowResponse;
 }
 
-interface NoShowParams {
-  bookingId: string;
-  notes?: string;
-}
-
 type UseNoShowBookingOptions = Omit<
-  UseMutationOptions<NoShowResponse, Error, NoShowParams>,
+  UseMutationOptions<NoShowResponse, Error, string>,
   'mutationFn'
 >;
 
@@ -29,10 +24,10 @@ export function useNoShowBooking(options?: UseNoShowBookingOptions) {
 
   return useMutation({
     ...restOptions,
-    mutationFn: async ({ bookingId, notes }: NoShowParams) => {
+    mutationFn: async (bookingId: string) => {
       const response = await httpClient.post<NoShowApiResponse>(
         `/bookings/${bookingId}/no-show`,
-        notes ? { notes } : undefined,
+        undefined,
         getToken
       );
       return response.data;

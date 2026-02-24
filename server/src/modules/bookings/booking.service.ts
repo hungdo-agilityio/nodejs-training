@@ -22,6 +22,8 @@ import {
   DailyBookingItem,
   DailyBookingsSummary,
   CheckInBookingResult,
+  CompleteBookingResult,
+  NoShowBookingResult,
 } from './booking.service.interface';
 
 /**
@@ -719,7 +721,8 @@ export class BookingBusinessService implements IBookingService {
    * Get all bookings for a specific date (staff only)
    */
   async getDailyBookings(
-    date: string
+    date: string,
+    excludeCompleted = false
   ): Promise<Result<GetDailyBookingsResult, ApiError>> {
     try {
       // Validate date format
@@ -730,12 +733,26 @@ export class BookingBusinessService implements IBookingService {
         );
       }
 
-      // Get all bookings for the date with user and services relations
-      const bookings = await this.bookingRepository
+      // Build query for bookings
+      const queryBuilder = this.bookingRepository
         .createQueryBuilder('booking')
         .leftJoinAndSelect('booking.user', 'user')
         .leftJoinAndSelect('booking.bookingServices', 'bookingServices')
-        .where('booking.appointmentDate = :date', { date })
+        .where('booking.appointmentDate = :date', { date });
+
+      // Apply filter to exclude completed bookings if requested
+      if (excludeCompleted) {
+        const completedStatuses = [
+          BookingStatus.DONE,
+          BookingStatus.CANCELLED,
+          BookingStatus.NO_SHOW,
+        ];
+        queryBuilder.andWhere('booking.status NOT IN (:...completedStatuses)', {
+          completedStatuses,
+        });
+      }
+
+      const bookings = await queryBuilder
         .orderBy('booking.appointmentDatetime', 'ASC')
         .getMany();
 
@@ -879,6 +896,104 @@ export class BookingBusinessService implements IBookingService {
     } catch (error) {
       this.logger.error('Failed to check in booking', error as Error);
       return Result.err(ApiError.internalError('Failed to check in booking'));
+    }
+  }
+
+  /**
+   * Complete a booking (staff only)
+   */
+  async completeBooking(
+    bookingId: string
+  ): Promise<Result<CompleteBookingResult, ApiError>> {
+    try {
+      // Get booking
+      const booking = await this.bookingRepository.findOne({
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      // Validate status (must be CHECKED_IN)
+      if (booking.status !== BookingStatus.CHECKED_IN) {
+        return Result.err(
+          ApiError.validationError(
+            `Cannot complete booking with status ${booking.status}. Must be CHECKED_IN.`
+          )
+        );
+      }
+
+      // Update booking status to DONE
+      const completedAt = new Date();
+      await this.bookingRepository.update(
+        { id: bookingId },
+        {
+          status: BookingStatus.DONE,
+          completedAt,
+        }
+      );
+
+      return Result.ok({
+        id: booking.id,
+        status: BookingStatus.DONE,
+        completedAt: completedAt.toISOString(),
+      });
+    } catch (error) {
+      this.logger.error('Failed to complete booking', error as Error);
+      return Result.err(ApiError.internalError('Failed to complete booking'));
+    }
+  }
+
+  /**
+   * Mark a booking as no-show (staff only)
+   */
+  async noShowBooking(
+    bookingId: string
+  ): Promise<Result<NoShowBookingResult, ApiError>> {
+    try {
+      // Get booking
+      const booking = await this.bookingRepository.findOne({
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        return Result.err(ApiError.notFound('Booking not found'));
+      }
+
+      // Validate status (must be CONFIRMED or AUTHORIZED)
+      const allowedStatuses = [
+        BookingStatus.CONFIRMED,
+        BookingStatus.AUTHORIZED,
+      ];
+
+      if (!allowedStatuses.includes(booking.status)) {
+        return Result.err(
+          ApiError.validationError(
+            `Cannot mark booking with status ${booking.status} as no-show. Must be CONFIRMED or AUTHORIZED.`
+          )
+        );
+      }
+
+      const previousStatus = booking.status;
+
+      // Update booking status to NO_SHOW
+      await this.bookingRepository.update(
+        { id: bookingId },
+        { status: BookingStatus.NO_SHOW }
+      );
+
+      return Result.ok({
+        id: booking.id,
+        status: BookingStatus.NO_SHOW,
+        previousStatus,
+        paymentMethod: booking.paymentMethod,
+      });
+    } catch (error) {
+      this.logger.error('Failed to mark booking as no-show', error as Error);
+      return Result.err(
+        ApiError.internalError('Failed to mark booking as no-show')
+      );
     }
   }
 }

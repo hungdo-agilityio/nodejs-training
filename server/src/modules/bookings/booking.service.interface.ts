@@ -140,6 +140,19 @@ export interface CheckInBookingResult {
   checkedInAt: string;
 }
 
+export interface CompleteBookingResult {
+  id: string;
+  status: BookingStatus;
+  completedAt: string;
+}
+
+export interface NoShowBookingResult {
+  id: string;
+  status: BookingStatus;
+  previousStatus: BookingStatus;
+  paymentMethod: PaymentMethod;
+}
+
 export interface IBookingService {
   /**
    * Validate services and calculate totals
@@ -219,7 +232,8 @@ export interface IBookingService {
    * Get all bookings for a specific date (staff only)
    */
   getDailyBookings(
-    date: string
+    date: string,
+    excludeCompleted?: boolean
   ): Promise<Result<GetDailyBookingsResult, ApiError>>;
 
   /**
@@ -228,4 +242,18 @@ export interface IBookingService {
   checkInBooking(
     bookingId: string
   ): Promise<Result<CheckInBookingResult, ApiError>>;
+
+  /**
+   * Complete a booking (staff only)
+   */
+  completeBooking(
+    bookingId: string
+  ): Promise<Result<CompleteBookingResult, ApiError>>;
+
+  /**
+   * Mark a booking as no-show (staff only)
+   */
+  noShowBooking(
+    bookingId: string
+  ): Promise<Result<NoShowBookingResult, ApiError>>;
 }
