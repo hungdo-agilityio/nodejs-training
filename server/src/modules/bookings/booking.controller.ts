@@ -240,6 +240,20 @@ export class BookingController implements IBookingController {
     res.json(result.getValue());
   }
 
+  async checkInBooking(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+
+    const result = await this.bookingService.checkInBooking(id as string);
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    res.json({ data: result.getValue() });
+  }
+
   /**
    * Reverse a Stripe payment based on the booking's previous status.
    * AUTHORIZED (uncaptured hold) → cancel the PaymentIntent

@@ -134,6 +134,12 @@ export interface GetDailyBookingsResult {
   date: string;
 }
 
+export interface CheckInBookingResult {
+  id: string;
+  status: BookingStatus;
+  checkedInAt: string;
+}
+
 export interface IBookingService {
   /**
    * Validate services and calculate totals
@@ -215,4 +221,11 @@ export interface IBookingService {
   getDailyBookings(
     date: string
   ): Promise<Result<GetDailyBookingsResult, ApiError>>;
+
+  /**
+   * Check in a booking (staff only)
+   */
+  checkInBooking(
+    bookingId: string
+  ): Promise<Result<CheckInBookingResult, ApiError>>;
 }

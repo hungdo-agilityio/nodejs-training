@@ -76,20 +76,21 @@ const registerDependencies = (
   );
   container.registerValue(TOKENS.SlotService, slotService);
 
-  const bookingBusinessService = new BookingBusinessService(
-    bookingRepository,
-    bookingServiceRepository,
-    serviceEntityRepository,
-    logger
-  );
-  container.registerValue(TOKENS.BookingService, bookingBusinessService);
-
   // Stripe
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2026-01-28.clover',
   });
   const stripeService = new StripeService(stripe, logger);
   container.registerValue(TOKENS.StripeService, stripeService);
+
+  const bookingBusinessService = new BookingBusinessService(
+    bookingRepository,
+    bookingServiceRepository,
+    serviceEntityRepository,
+    stripeService,
+    logger
+  );
+  container.registerValue(TOKENS.BookingService, bookingBusinessService);
 
   // Controllers
   const userController = new UserController();
