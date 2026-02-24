@@ -33,6 +33,7 @@ interface BookingCardProps {
   onCheckIn: () => void;
   onComplete: () => void;
   onNoShow: () => void;
+  isOverdue?: boolean;
 }
 
 export const BookingCard = ({
@@ -40,6 +41,7 @@ export const BookingCard = ({
   onCheckIn,
   onComplete,
   onNoShow,
+  isOverdue = false,
 }: BookingCardProps) => {
   const statusConfig = STATUS_CONFIG[booking.status] ?? {
     label: booking.status,
@@ -61,7 +63,11 @@ export const BookingCard = ({
   const hasActions = canCheckIn || canComplete;
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm">
+    <div
+      className={`rounded-lg bg-white p-5 shadow-sm ${
+        isOverdue ? 'border-2 border-red-400 bg-red-50/30' : ''
+      }`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         {/* Left: booking info */}
         <div className="flex-1 space-y-3">
@@ -93,6 +99,11 @@ export const BookingCard = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {isOverdue && (
+              <span className="animate-pulse rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                OVERDUE
+              </span>
+            )}
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusConfig.className}`}
             >

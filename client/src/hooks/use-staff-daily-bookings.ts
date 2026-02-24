@@ -97,6 +97,7 @@ function transformApiResponse(
 
 export function useStaffDailyBookings(
   date: string,
+  excludeCompleted = false,
   options?: Omit<
     UseQueryOptions<StaffDailyResponse, Error>,
     'queryKey' | 'queryFn'
@@ -105,10 +106,15 @@ export function useStaffDailyBookings(
   const { getToken } = useAuth();
 
   return useQuery<StaffDailyResponse, Error>({
-    queryKey: ['staff-bookings', date],
+    queryKey: ['staff-bookings', date, excludeCompleted],
     queryFn: async () => {
+      const params = new URLSearchParams({ date });
+      if (excludeCompleted) {
+        params.append('exclude_completed', 'true');
+      }
+
       const response = await httpClient.get<ApiDailyBookingsResponse>(
-        `/bookings/daily?date=${date}`,
+        `/bookings/daily?${params.toString()}`,
         getToken
       );
       return transformApiResponse(response);

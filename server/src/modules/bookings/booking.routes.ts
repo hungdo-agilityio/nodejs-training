@@ -243,6 +243,13 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *           format: date
    *           example: "2026-02-24"
    *         description: Target date (YYYY-MM-DD). Defaults to today if not provided.
+   *       - in: query
+   *         name: exclude_completed
+   *         schema:
+   *           type: boolean
+   *           default: false
+   *           example: true
+   *         description: If true, excludes bookings with status DONE, CANCELLED, or NO_SHOW
    *     responses:
    *       200:
    *         description: Daily bookings retrieved successfully
@@ -386,6 +393,115 @@ export function createBookingRoutes(controller: IBookingController): Router {
     '/:id/check-in',
     createRequireRole(UserRole.STAFF, UserRole.ADMIN),
     (req, res) => controller.checkInBooking(req, res)
+  );
+
+  /**
+   * @openapi
+   * /bookings/{id}/complete:
+   *   post:
+   *     summary: Complete a booking
+   *     description: Mark a booking as completed after service is done. Requires STAFF or ADMIN role.
+   *     tags:
+   *       - Staff Operations
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Booking ID
+   *     responses:
+   *       200:
+   *         description: Booking completed successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       format: uuid
+   *                     status:
+   *                       type: string
+   *                       enum: [DONE]
+   *                     completedAt:
+   *                       type: string
+   *                       format: date-time
+   *       400:
+   *         description: Bad request - invalid status (must be CHECKED_IN)
+   *       404:
+   *         description: Booking not found
+   *       401:
+   *         description: Unauthorized - authentication required
+   *       403:
+   *         description: Forbidden - insufficient permissions
+   */
+  router.post(
+    '/:id/complete',
+    createRequireRole(UserRole.STAFF, UserRole.ADMIN),
+    (req, res) => controller.completeBooking(req, res)
+  );
+
+  /**
+   * @openapi
+   * /bookings/{id}/no-show:
+   *   post:
+   *     summary: Mark a booking as no-show
+   *     description: Mark a customer as no-show when they don't arrive. Requires STAFF or ADMIN role.
+   *     tags:
+   *       - Staff Operations
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Booking ID
+   *     responses:
+   *       200:
+   *         description: Booking marked as no-show successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       format: uuid
+   *                     status:
+   *                       type: string
+   *                       enum: [NO_SHOW]
+   *                     previousStatus:
+   *                       type: string
+   *                       enum: [CONFIRMED, AUTHORIZED]
+   *                     paymentMethod:
+   *                       type: string
+   *                       enum: [CASH, STRIPE]
+   *       400:
+   *         description: Bad request - invalid status (must be CONFIRMED or AUTHORIZED)
+   *       404:
+   *         description: Booking not found
+   *       401:
+   *         description: Unauthorized - authentication required
+   *       403:
+   *         description: Forbidden - insufficient permissions
+   */
+  router.post(
+    '/:id/no-show',
+    createRequireRole(UserRole.STAFF, UserRole.ADMIN),
+    (req, res) => controller.noShowBooking(req, res)
   );
 
   router.get('/', (req, res) => controller.getBookings(req, res));
