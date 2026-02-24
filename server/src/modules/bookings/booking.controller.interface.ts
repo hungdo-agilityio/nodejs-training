@@ -5,4 +5,5 @@ export interface IBookingController {
   getBookings(req: Request, res: Response): Promise<void>;
   getBookingById(req: Request, res: Response): Promise<void>;
   cancelBooking(req: Request, res: Response): Promise<void>;
+  getDailyBookings(req: Request, res: Response): Promise<void>;
 }

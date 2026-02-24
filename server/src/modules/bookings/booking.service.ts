@@ -17,6 +17,9 @@ import {
   BookingListItem,
   BookingDetail,
   CancelBookingResult,
+  GetDailyBookingsResult,
+  DailyBookingItem,
+  DailyBookingsSummary,
 } from './booking.service.interface';
 
 /**
@@ -706,6 +709,95 @@ export class BookingBusinessService implements IBookingService {
     } catch (error) {
       this.logger.error('Failed to cancel booking', error as Error);
       return Result.err(ApiError.internalError('Failed to cancel booking'));
+    }
+  }
+
+  /**
+   * Get all bookings for a specific date (staff only)
+   */
+  async getDailyBookings(
+    date: string
+  ): Promise<Result<GetDailyBookingsResult, ApiError>> {
+    try {
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date)) {
+        return Result.err(
+          ApiError.validationError('Invalid date format. Use YYYY-MM-DD')
+        );
+      }
+
+      // Get all bookings for the date with user and services relations
+      const bookings = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.user', 'user')
+        .leftJoinAndSelect('booking.bookingServices', 'bookingServices')
+        .where('booking.appointmentDate = :date', { date })
+        .orderBy('booking.appointmentDatetime', 'ASC')
+        .getMany();
+
+      // Calculate summary statistics
+      const summary: DailyBookingsSummary = {
+        totalBookings: bookings.length,
+        totalRevenue: 0,
+        byStatus: {} as Record<BookingStatus, number>,
+      };
+
+      // Initialize status counts
+      Object.values(BookingStatus).forEach((status) => {
+        summary.byStatus[status] = 0;
+      });
+
+      // Format bookings and calculate summary
+      const data: DailyBookingItem[] = bookings.map((booking) => {
+        const appointmentTime = new Date(booking.appointmentDatetime)
+          .toTimeString()
+          .substring(0, 5);
+
+        // Update summary
+        summary.byStatus[booking.status]++;
+        if (
+          booking.status === BookingStatus.CONFIRMED ||
+          booking.status === BookingStatus.CHECKED_IN ||
+          booking.status === BookingStatus.DONE
+        ) {
+          summary.totalRevenue += Number(booking.totalPrice);
+        }
+
+        return {
+          id: booking.id,
+          customer: {
+            id: booking.user.id,
+            firstName: booking.user.firstName,
+            lastName: booking.user.lastName,
+            email: booking.user.email,
+            phoneNumber: booking.user.phone,
+          },
+          services: booking.bookingServices.map((bs) => ({
+            id: bs.serviceId,
+            name: bs.serviceName,
+            price: Number(bs.servicePrice),
+            durationMinutes: bs.serviceDurationMinutes,
+          })),
+          appointmentTime,
+          status: booking.status,
+          paymentMethod: booking.paymentMethod,
+          totalPrice: Number(booking.totalPrice),
+          totalDurationMinutes: booking.totalDurationMinutes,
+          notes: booking.notes,
+        };
+      });
+
+      return Result.ok({
+        data,
+        summary,
+        date,
+      });
+    } catch (error) {
+      this.logger.error('Failed to get daily bookings', error as Error);
+      return Result.err(
+        ApiError.internalError('Failed to retrieve daily bookings')
+      );
     }
   }
 }

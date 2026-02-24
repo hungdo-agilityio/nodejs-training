@@ -222,6 +222,24 @@ export class BookingController implements IBookingController {
     });
   }
 
+  async getDailyBookings(req: Request, res: Response): Promise<void> {
+    const { date } = req.query;
+
+    // Default to today if no date provided
+    const targetDate =
+      (date as string) || new Date().toISOString().split('T')[0];
+
+    const result = await this.bookingService.getDailyBookings(targetDate);
+
+    if (result.isErr()) {
+      const error = result.getError();
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    res.json(result.getValue());
+  }
+
   /**
    * Reverse a Stripe payment based on the booking's previous status.
    * AUTHORIZED (uncaptured hold) → cancel the PaymentIntent

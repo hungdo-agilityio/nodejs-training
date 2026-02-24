@@ -24,7 +24,7 @@ export default function CallbackPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-sky-50">
-      <div className="text-center">
+      <div className="flex flex-col items-center text-center">
         <Spinner size="lg" className="text-sky-500" />
         <p className="mt-4 text-slate-600">Redirecting...</p>
       </div>
