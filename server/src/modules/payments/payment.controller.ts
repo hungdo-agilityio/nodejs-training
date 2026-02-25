@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'crypto';
 import { Request, Response } from 'express';
 import { IPaymentController } from './payment.controller.interface';
 import { PaymentValidator } from './payment.validator';
@@ -133,23 +132,11 @@ export class PaymentController implements IPaymentController {
       return;
     }
 
-    // Generate idempotency key with a nonce to allow rebooking after cancellation
-    const nonce = randomBytes(8).toString('hex');
-    const idempotencyData = JSON.stringify({
-      userId: req.user.id,
-      serviceIds: [...serviceIds].sort(),
-      appointmentDate,
-      appointmentTime,
-      nonce,
-    });
-    const idempotencyKey = `pi_${createHash('sha256').update(idempotencyData).digest('hex').substring(0, 32)}`;
-
-    // Create Stripe PaymentIntent
+    // Create Stripe PaymentIntent (idempotency key derived from params in service)
     const paymentIntentResult = await this.stripeService.createPaymentIntent({
       amount: totalPrice,
       currency: 'usd',
       userId: req.user.id,
-      idempotencyKey,
       serviceIds,
       appointmentDate,
       appointmentTime,

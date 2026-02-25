@@ -7,7 +7,7 @@ export interface CreatePaymentIntentParams {
   currency: string;
   bookingId?: string;
   userId: string;
-  idempotencyKey: string; // From client to prevent duplicate charges
+  idempotencyKey?: string; // If omitted, generated deterministically from params
   serviceIds?: string[];
   appointmentDate?: string;
   appointmentTime?: string;

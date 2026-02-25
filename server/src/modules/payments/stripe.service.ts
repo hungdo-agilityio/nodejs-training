@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import Stripe from 'stripe';
 import { ILogger } from '@shared/types';
 import { Result } from '@shared/utils';
@@ -36,6 +37,14 @@ export class StripeService implements IStripeService {
       if (appointmentDate) metadata.appointmentDate = appointmentDate;
       if (appointmentTime) metadata.appointmentTime = appointmentTime;
 
+      // Derive idempotency key from params when not explicitly provided
+      const resolvedIdempotencyKey =
+        idempotencyKey ??
+        `pi_${createHash('sha256')
+          .update(JSON.stringify({ userId, bookingId, serviceIds: [...(serviceIds ?? [])].sort(), appointmentDate, appointmentTime }))
+          .digest('hex')
+          .substring(0, 32)}`;
+
       // Create PaymentIntent with manual capture
       const paymentIntent = await this.stripe.paymentIntents.create(
         {
@@ -45,8 +54,7 @@ export class StripeService implements IStripeService {
           metadata,
         },
         {
-          // Use client-provided idempotency key to prevent duplicate charges
-          idempotencyKey,
+          idempotencyKey: resolvedIdempotencyKey,
         }
       );
 
