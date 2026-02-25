@@ -111,6 +111,7 @@ export default function NewBookingPage() {
   };
 
   const handleBackToServices = () => {
+    setPaymentIntentData(null);
     setStep('services');
   };
 
@@ -119,6 +120,7 @@ export default function NewBookingPage() {
   };
 
   const handleBackToDateTime = () => {
+    setPaymentIntentData(null);
     setStep('datetime');
   };
 
@@ -287,8 +289,14 @@ export default function NewBookingPage() {
               selectedServiceIds={selectedServiceIds}
               selectedDate={selectedDate}
               selectedTime={selectedTime}
-              onEditServices={() => setStep('services')}
-              onEditDateTime={() => setStep('datetime')}
+              onEditServices={() => {
+                setPaymentIntentData(null);
+                setStep('services');
+              }}
+              onEditDateTime={() => {
+                setPaymentIntentData(null);
+                setStep('datetime');
+              }}
               onBack={handleBackToDateTime}
               onContinue={handleContinueToPayment}
             />
