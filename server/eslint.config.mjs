@@ -24,7 +24,10 @@ export default [
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
@@ -32,6 +35,12 @@ export default [
   },
   prettier,
   {
-    ignores: ['node_modules/**', 'dist/**', '**/*.js', '**/*.mjs'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      '**/*.js',
+      '**/*.mjs',
+      'vitest.config.ts',
+    ],
   },
 ];

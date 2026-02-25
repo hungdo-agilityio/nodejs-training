@@ -12,11 +12,6 @@ const mockBookingRepository = {
   createQueryBuilder: vi.fn(),
 };
 
-const mockBookingServiceRepository = {
-  create: vi.fn(),
-  save: vi.fn(),
-};
-
 const mockServiceRepository = {
   find: vi.fn(),
 };
@@ -24,6 +19,10 @@ const mockServiceRepository = {
 const mockStripeService = {
   capturePayment: vi.fn(),
   cancelPaymentIntent: vi.fn(),
+};
+
+const mockDataSource = {
+  transaction: vi.fn(),
 };
 
 const mockLogger = {
@@ -44,10 +43,10 @@ describe('BookingBusinessService', () => {
     vi.clearAllMocks();
     service = new BookingBusinessService(
       mockBookingRepository as never,
-      mockBookingServiceRepository as never,
       mockServiceRepository as never,
       mockStripeService as never,
-      mockLogger
+      mockLogger,
+      mockDataSource as never
     );
   });
 
@@ -73,8 +72,14 @@ describe('BookingBusinessService', () => {
     });
 
     it('generates different keys for different service orderings (sorted internally)', () => {
-      const keyA = service.generateIdempotencyKey({ ...dto, serviceIds: ['svc-a', 'svc-b'] });
-      const keyB = service.generateIdempotencyKey({ ...dto, serviceIds: ['svc-b', 'svc-a'] });
+      const keyA = service.generateIdempotencyKey({
+        ...dto,
+        serviceIds: ['svc-a', 'svc-b'],
+      });
+      const keyB = service.generateIdempotencyKey({
+        ...dto,
+        serviceIds: ['svc-b', 'svc-a'],
+      });
       // serviceIds are sorted before hashing, so same order → same key
       expect(keyA).toBe(keyB);
     });
@@ -86,8 +91,14 @@ describe('BookingBusinessService', () => {
     });
 
     it('generates different keys for different dates', () => {
-      const key1 = service.generateIdempotencyKey({ ...dto, appointmentDate: '2099-12-31' });
-      const key2 = service.generateIdempotencyKey({ ...dto, appointmentDate: '2099-12-30' });
+      const key1 = service.generateIdempotencyKey({
+        ...dto,
+        appointmentDate: '2099-12-31',
+      });
+      const key2 = service.generateIdempotencyKey({
+        ...dto,
+        appointmentDate: '2099-12-30',
+      });
       expect(key1).not.toBe(key2);
     });
   });
@@ -96,11 +107,14 @@ describe('BookingBusinessService', () => {
   describe('validateServicesAndCalculateTotals', () => {
     it('returns totals for valid services', async () => {
       mockServiceRepository.find.mockResolvedValue([
-        { id: 'svc-1', name: 'Haircut', price: '25.00', durationMinutes: 30 },
-        { id: 'svc-2', name: 'Coloring', price: '80.00', durationMinutes: 90 },
+        { id: 'svc-1', name: 'Haircut', price: 25, durationMinutes: 30 },
+        { id: 'svc-2', name: 'Coloring', price: 80, durationMinutes: 90 },
       ]);
 
-      const result = await service.validateServicesAndCalculateTotals(['svc-1', 'svc-2']);
+      const result = await service.validateServicesAndCalculateTotals([
+        'svc-1',
+        'svc-2',
+      ]);
 
       expect(result.isOk()).toBe(true);
       const value = result.getValue();
@@ -119,10 +133,13 @@ describe('BookingBusinessService', () => {
 
     it('returns 404 when some services are not found', async () => {
       mockServiceRepository.find.mockResolvedValue([
-        { id: 'svc-1', name: 'Haircut', price: '25.00', durationMinutes: 30 },
+        { id: 'svc-1', name: 'Haircut', price: 25, durationMinutes: 30 },
       ]);
 
-      const result = await service.validateServicesAndCalculateTotals(['svc-1', 'svc-missing']);
+      const result = await service.validateServicesAndCalculateTotals([
+        'svc-1',
+        'svc-missing',
+      ]);
 
       expect(result.isErr()).toBe(true);
       expect(result.getError().statusCode).toBe(404);
@@ -130,10 +147,13 @@ describe('BookingBusinessService', () => {
 
     it('deduplicates service IDs before fetching', async () => {
       mockServiceRepository.find.mockResolvedValue([
-        { id: 'svc-1', name: 'Haircut', price: '25.00', durationMinutes: 30 },
+        { id: 'svc-1', name: 'Haircut', price: 25, durationMinutes: 30 },
       ]);
 
-      const result = await service.validateServicesAndCalculateTotals(['svc-1', 'svc-1']);
+      const result = await service.validateServicesAndCalculateTotals([
+        'svc-1',
+        'svc-1',
+      ]);
 
       expect(result.isOk()).toBe(true);
       expect(result.getValue().totalPrice).toBe(25);
@@ -142,7 +162,9 @@ describe('BookingBusinessService', () => {
     it('returns internal error when repository throws', async () => {
       mockServiceRepository.find.mockRejectedValue(new Error('DB error'));
 
-      const result = await service.validateServicesAndCalculateTotals(['svc-1']);
+      const result = await service.validateServicesAndCalculateTotals([
+        'svc-1',
+      ]);
 
       expect(result.isErr()).toBe(true);
       expect(result.getError().statusCode).toBe(500);
@@ -154,7 +176,11 @@ describe('BookingBusinessService', () => {
     it('returns true when no bookings overlap', async () => {
       mockBookingRepository.find.mockResolvedValue([]);
 
-      const result = await service.checkCapacityAvailability(futureDate, futureTime, 60);
+      const result = await service.checkCapacityAvailability(
+        futureDate,
+        futureTime,
+        60
+      );
 
       expect(result.isOk()).toBe(true);
       expect(result.getValue()).toBe(true);
@@ -167,14 +193,22 @@ describe('BookingBusinessService', () => {
         { appointmentDatetime, totalDurationMinutes: 60 },
       ]);
 
-      const result = await service.checkCapacityAvailability(futureDate, futureTime, 60);
+      const result = await service.checkCapacityAvailability(
+        futureDate,
+        futureTime,
+        60
+      );
 
       expect(result.isErr()).toBe(true);
       expect(result.getError().statusCode).toBe(409);
     });
 
     it('returns validation error for invalid date format', async () => {
-      const result = await service.checkCapacityAvailability('31-12-2099', futureTime, 60);
+      const result = await service.checkCapacityAvailability(
+        '31-12-2099',
+        futureTime,
+        60
+      );
 
       expect(result.isErr()).toBe(true);
       expect(result.getError().statusCode).toBe(400);
@@ -182,7 +216,11 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error for invalid time format', async () => {
-      const result = await service.checkCapacityAvailability(futureDate, '9:00', 60);
+      const result = await service.checkCapacityAvailability(
+        futureDate,
+        '9:00',
+        60
+      );
 
       expect(result.isErr()).toBe(true);
       expect(result.getError().statusCode).toBe(400);
@@ -190,7 +228,11 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error for past appointment time', async () => {
-      const result = await service.checkCapacityAvailability('2020-01-01', '09:00', 60);
+      const result = await service.checkCapacityAvailability(
+        '2020-01-01',
+        '09:00',
+        60
+      );
 
       expect(result.isErr()).toBe(true);
       expect(result.getError().statusCode).toBe(400);
@@ -235,7 +277,9 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 403 when user does not own the booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(makeBooking({ userId: 'other-user' }));
+      mockBookingRepository.findOne.mockResolvedValue(
+        makeBooking({ userId: 'other-user' })
+      );
 
       const result = await service.cancelBooking(bookingId, userId);
 
@@ -244,7 +288,9 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error for non-cancellable status', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(makeBooking({ status: BookingStatus.DONE }));
+      mockBookingRepository.findOne.mockResolvedValue(
+        makeBooking({ status: BookingStatus.DONE })
+      );
 
       const result = await service.cancelBooking(bookingId, userId);
 
@@ -268,9 +314,14 @@ describe('BookingBusinessService', () => {
     });
 
     it('can cancel AUTHORIZED and PENDING_PAYMENT bookings too', async () => {
-      for (const status of [BookingStatus.AUTHORIZED, BookingStatus.PENDING_PAYMENT]) {
+      for (const status of [
+        BookingStatus.AUTHORIZED,
+        BookingStatus.PENDING_PAYMENT,
+      ]) {
         vi.clearAllMocks();
-        mockBookingRepository.findOne.mockResolvedValue(makeBooking({ status }));
+        mockBookingRepository.findOne.mockResolvedValue(
+          makeBooking({ status })
+        );
         mockBookingRepository.update.mockResolvedValue({ affected: 1 });
 
         const result = await service.cancelBooking(bookingId, userId);
@@ -307,7 +358,10 @@ describe('BookingBusinessService', () => {
         paymentMethod: PaymentMethod.STRIPE,
         stripePaymentIntentId: 'pi_abc',
       });
-      mockStripeService.capturePayment.mockResolvedValue({ isErr: () => false, getValue: () => ({}) });
+      mockStripeService.capturePayment.mockResolvedValue({
+        isErr: () => false,
+        getValue: () => ({}),
+      });
       mockBookingRepository.update.mockResolvedValue({ affected: 1 });
 
       const result = await service.checkInBooking(bookingId);
@@ -458,11 +512,18 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error for disallowed statuses', async () => {
-      const disallowed = [BookingStatus.CHECKED_IN, BookingStatus.DONE, BookingStatus.CANCELLED];
+      const disallowed = [
+        BookingStatus.CHECKED_IN,
+        BookingStatus.DONE,
+        BookingStatus.CANCELLED,
+      ];
 
       for (const status of disallowed) {
         vi.clearAllMocks();
-        mockBookingRepository.findOne.mockResolvedValue({ id: bookingId, status });
+        mockBookingRepository.findOne.mockResolvedValue({
+          id: bookingId,
+          status,
+        });
 
         const result = await service.noShowBooking(bookingId);
 
