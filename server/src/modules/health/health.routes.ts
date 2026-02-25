@@ -27,7 +27,7 @@ export const createHealthRoutes = (): Router => {
    *                   format: date-time
    *                   example: 2024-01-01T00:00:00.000Z
    */
-  router.get('/health', (_req, res) => {
+  router.get('/', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 

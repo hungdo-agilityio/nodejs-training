@@ -100,7 +100,7 @@ export const createSlotRoutes = (slotController: ISlotController): Router => {
    *       404:
    *         description: No availability or salon closed
    */
-  router.get('/slots', (req, res) => slotController.getAvailableSlots(req, res));
+  router.get('/', (req, res) => slotController.getAvailableSlots(req, res));
 
   return router;
 };
