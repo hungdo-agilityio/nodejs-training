@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { IBookingController } from './booking.controller.interface';
 import { BookingBusinessService } from './booking.service';
 import { CancelBookingResult } from './booking.service.interface';
+import { BookingValidator } from './booking.validator';
 import { IStripeService } from '@modules/payments/stripe.service.interface';
 import { PaymentMethod, BookingStatus } from '@shared/types';
 import { ApiError } from '@shared/errors';
@@ -19,6 +20,13 @@ export class BookingController implements IBookingController {
       return;
     }
 
+    const validation = BookingValidator.validateCreate(req.body);
+
+    if (!validation.valid) {
+      res.status(validation.error.statusCode).json(validation.error.toJSON());
+      return;
+    }
+
     const {
       serviceIds,
       appointmentDate,
@@ -27,50 +35,6 @@ export class BookingController implements IBookingController {
       notes,
       stripePaymentIntentId,
     } = req.body;
-
-    // Validate required fields
-    if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-      const error = ApiError.validationError(
-        'serviceIds is required and must be a non-empty array'
-      );
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!appointmentDate) {
-      const error = ApiError.validationError('appointmentDate is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!appointmentTime) {
-      const error = ApiError.validationError('appointmentTime is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!paymentMethod) {
-      const error = ApiError.validationError('paymentMethod is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!['CASH', 'STRIPE'].includes(paymentMethod)) {
-      const error = ApiError.validationError(
-        'paymentMethod must be either CASH or STRIPE'
-      );
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    // Validate stripePaymentIntentId for STRIPE payments
-    if (paymentMethod === 'STRIPE' && !stripePaymentIntentId) {
-      const error = ApiError.validationError(
-        'stripePaymentIntentId is required for STRIPE payments'
-      );
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
 
     const result = await this.bookingService.createBooking({
       userId: req.user.id,
@@ -111,36 +75,11 @@ export class BookingController implements IBookingController {
       limit,
     } = req.query;
 
-    // Validate status if provided
-    if (status && typeof status === 'string') {
-      const validStatuses = [
-        'PENDING_PAYMENT',
-        'CONFIRMED',
-        'AUTHORIZED',
-        'CHECKED_IN',
-        'DONE',
-        'CANCELLED',
-        'NO_SHOW',
-        'PAYMENT_FAILED',
-      ];
-      if (!validStatuses.includes(status)) {
-        const error = ApiError.validationError(
-          `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-        );
-        res.status(error.statusCode).json(error.toJSON());
-        return;
-      }
-    }
+    const validation = BookingValidator.validateGetBookings(req.query);
 
-    // Validate payment_method if provided
-    if (payment_method && typeof payment_method === 'string') {
-      if (!['CASH', 'STRIPE'].includes(payment_method)) {
-        const error = ApiError.validationError(
-          'Invalid payment_method. Must be either CASH or STRIPE'
-        );
-        res.status(error.statusCode).json(error.toJSON());
-        return;
-      }
+    if (!validation.valid) {
+      res.status(validation.error.statusCode).json(validation.error.toJSON());
+      return;
     }
 
     const result = await this.bookingService.getBookings({
