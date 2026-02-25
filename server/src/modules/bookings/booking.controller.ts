@@ -118,9 +118,10 @@ export class BookingController implements IBookingController {
         'CONFIRMED',
         'AUTHORIZED',
         'CHECKED_IN',
-        'COMPLETED',
+        'DONE',
         'CANCELLED',
-        'EXPIRED',
+        'NO_SHOW',
+        'PAYMENT_FAILED',
       ];
       if (!validStatuses.includes(status)) {
         const error = ApiError.validationError(

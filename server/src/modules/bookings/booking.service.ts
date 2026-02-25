@@ -281,25 +281,18 @@ export class BookingBusinessService implements IBookingService {
         `${dto.appointmentDate}T${dto.appointmentTime}:00`
       );
 
-      // 6. Determine status and expiry based on payment method
+      // 6. Determine status based on payment method
       const isCashPayment = dto.paymentMethod === PaymentMethod.CASH;
       const hasPaymentIntent = !!dto.stripePaymentIntentId;
       let status: BookingStatus;
       if (isCashPayment) {
         status = BookingStatus.CONFIRMED;
       } else if (hasPaymentIntent) {
-        // Card flow: booking created after successful payment
+        // Card flow: booking created after successful payment authorization
         status = BookingStatus.AUTHORIZED;
       } else {
-        // Legacy flow: booking created before payment
         status = BookingStatus.PENDING_PAYMENT;
       }
-
-      // Only set expiry for legacy flow (no payment intent provided)
-      const expiresAt =
-        !isCashPayment && !hasPaymentIntent
-          ? new Date(Date.now() + 15 * 60 * 1000)
-          : null;
 
       // 7. Create booking entity
       const booking = this.bookingRepository.create({
@@ -314,7 +307,6 @@ export class BookingBusinessService implements IBookingService {
         idempotencyKey,
         notes: dto.notes || null,
         stripePaymentIntentId: dto.stripePaymentIntentId || null,
-        expiresAt,
         checkedInAt: null,
         completedAt: null,
         cancelledAt: null,

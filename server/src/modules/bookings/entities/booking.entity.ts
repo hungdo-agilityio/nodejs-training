@@ -46,9 +46,6 @@ export class Booking extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  @Column({ name: 'expires_at', type: 'datetime', nullable: true })
-  expiresAt: Date | null;
-
   @Column({ name: 'checked_in_at', type: 'datetime', nullable: true })
   checkedInAt: Date | null;
 
