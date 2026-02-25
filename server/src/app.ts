@@ -1,5 +1,6 @@
 import express, { Application } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import { ILogger } from '@shared/types';
 import {
@@ -39,6 +40,7 @@ export const createApp = (
   const app = express();
 
   // Middleware
+  app.use(helmet());
   app.use(cors());
 
   // Webhook routes (need raw body, must come before express.json())
