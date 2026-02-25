@@ -51,7 +51,7 @@ export const createServiceRoutes = (
    *       500:
    *         description: Internal server error
    */
-  router.get('/services', (req, res) => serviceController.getServices(req, res));
+  router.get('/', (req, res) => serviceController.getServices(req, res));
 
   return router;
 };

@@ -2,21 +2,24 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { ILogger } from '@shared/types';
-import { clerkAuth, createErrorHandler, createLoadUser } from '@shared/middleware';
+import {
+  clerkAuth,
+  createErrorHandler,
+  createLoadUser,
+} from '@shared/middleware';
 import { NODE_ENV } from '@shared/constants';
 import { swaggerSpec } from '@shared/swagger';
 import { IClerkWebhookHandler, createAuthRoutes } from '@modules/auth';
-import { IUserController, IUserService, createUserRoutes } from '@modules/users';
-import { ISlotController, createSlotRoutes } from '@modules/slots';
-import { IServiceController, createServiceRoutes } from '@modules/services';
-import { IBookingController, createBookingRoutes } from '@modules/bookings';
-import { createHealthRoutes } from '@modules/health';
+import { IUserController, IUserService } from '@modules/users';
+import { ISlotController } from '@modules/slots';
+import { IServiceController } from '@modules/services';
+import { IBookingController } from '@modules/bookings';
 import {
   IPaymentController,
   IWebhookController,
-  createPaymentRoutes,
   createWebhookRoutes,
 } from '@modules/payments';
+import { createApiRouter } from './routes';
 
 export interface AppDependencies {
   clerkWebhookHandler: IClerkWebhookHandler;
@@ -39,7 +42,7 @@ export const createApp = (
   app.use(cors());
 
   // Webhook routes (need raw body, must come before express.json())
-  app.use('/api', createAuthRoutes(dependencies));
+  app.use('/api/webhooks', createAuthRoutes(dependencies));
   app.use('/api/webhooks', createWebhookRoutes(dependencies.webhookController));
 
   app.use(express.json());
@@ -55,12 +58,7 @@ export const createApp = (
   }
 
   // API Routes
-  app.use('/api', createHealthRoutes());
-  app.use('/api', createServiceRoutes(dependencies.serviceController)); // Public route
-  app.use('/api', createSlotRoutes(dependencies.slotController)); // Public route
-  app.use('/api', loadUser, createUserRoutes(dependencies.userController));
-  app.use('/api/bookings', loadUser, createBookingRoutes(dependencies.bookingController));
-  app.use('/api/payments', loadUser, createPaymentRoutes(dependencies.paymentController));
+  app.use('/api', createApiRouter(dependencies, loadUser));
 
   // Error handling
   app.use(createErrorHandler(logger));

@@ -88,17 +88,9 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *                       id:
    *                         type: string
    *                         format: uuid
-   *                       services:
-   *                         type: array
-   *                         items:
-   *                           type: object
-   *                           properties:
-   *                             name:
-   *                               type: string
-   *                             price:
-   *                               type: number
-   *                             durationMinutes:
-   *                               type: integer
+   *                       servicesCount:
+   *                         type: integer
+   *                         description: Number of services in the booking
    *                       appointmentDatetime:
    *                         type: string
    *                         format: date-time
@@ -107,10 +99,13 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *                         format: date
    *                       appointmentTime:
    *                         type: string
+   *                         example: "14:30"
    *                       status:
    *                         type: string
+   *                         enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, PAYMENT_FAILED]
    *                       paymentMethod:
    *                         type: string
+   *                         enum: [CASH, STRIPE]
    *                       totalPrice:
    *                         type: number
    *                       totalDurationMinutes:
@@ -133,7 +128,11 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *         description: Unauthorized - authentication required
    *   post:
    *     summary: Create a new booking
-   *     description: Creates a new booking with the selected services and appointment time. Includes concurrency protection via idempotency key.
+   *     description: |
+   *       Creates a new booking with selected services and appointment time.
+   *       - For **STRIPE** payments: call `POST /payments/create-intent` first to get a `paymentIntentId`, confirm the card with Stripe Elements, then pass `stripePaymentIntentId` here. Booking will be created with status `AUTHORIZED`.
+   *       - For **CASH** payments: no `stripePaymentIntentId` needed. Booking is created with status `CONFIRMED`.
+   *       Concurrency is protected via a database-level unique idempotency key.
    *     tags:
    *       - Bookings
    *     security:
@@ -155,23 +154,27 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *                 items:
    *                   type: string
    *                   format: uuid
-   *                 description: Array of service IDs to book
+   *                 description: Array of service IDs to book (at least one required)
    *                 example: ["service-uuid-1", "service-uuid-2"]
    *               appointmentDate:
    *                 type: string
    *                 format: date
-   *                 description: Appointment date in YYYY-MM-DD format
+   *                 description: Appointment date (YYYY-MM-DD)
    *                 example: "2026-02-15"
    *               appointmentTime:
    *                 type: string
    *                 pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
-   *                 description: Appointment time in HH:MM format (24-hour)
+   *                 description: Appointment time in HH:MM 24-hour format
    *                 example: "14:30"
    *               paymentMethod:
    *                 type: string
    *                 enum: [CASH, STRIPE]
-   *                 description: Payment method for the booking
+   *                 description: Payment method
    *                 example: "STRIPE"
+   *               stripePaymentIntentId:
+   *                 type: string
+   *                 description: Required when paymentMethod is STRIPE. Obtained from POST /payments/create-intent after card confirmation.
+   *                 example: "pi_3ABC123xyz"
    *               notes:
    *                 type: string
    *                 description: Optional notes for the booking
@@ -196,34 +199,26 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *                     appointmentDatetime:
    *                       type: string
    *                       format: date-time
+   *                     appointmentTime:
+   *                       type: string
+   *                       example: "14:30"
    *                     totalPrice:
    *                       type: number
-   *                       format: decimal
    *                     totalDurationMinutes:
    *                       type: integer
    *                     status:
    *                       type: string
-   *                       enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, PAYMENT_FAILED]
-   *                       description: CONFIRMED for cash payments, PENDING_PAYMENT for card payments
+   *                       enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED]
+   *                       description: AUTHORIZED for STRIPE, CONFIRMED for CASH, PENDING_PAYMENT if no stripePaymentIntentId
    *                     idempotencyKey:
    *                       type: string
-   *                       description: Unique key to prevent duplicate bookings
+   *                       description: Unique key used for duplicate prevention
    *       400:
-   *         description: Bad request - validation error or business rule violation
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 error:
-   *                   type: string
-   *                   examples:
-   *                     - "serviceIds is required and must be a non-empty array"
-   *                     - "One or more services not found or inactive"
-   *                     - "No capacity available for the requested time slot"
-   *                     - "Booking already exists"
+   *         description: Validation error or business rule violation (invalid services, no capacity, duplicate booking)
    *       401:
    *         description: Unauthorized - authentication required
+   *       409:
+   *         description: Conflict - booking already exists for this slot
    */
   /**
    * @openapi
@@ -505,8 +500,149 @@ export function createBookingRoutes(controller: IBookingController): Router {
   );
 
   router.get('/', (req, res) => controller.getBookings(req, res));
+
+  /**
+   * @openapi
+   * /bookings/{id}:
+   *   get:
+   *     summary: Get booking by ID
+   *     description: Returns full details of a specific booking including services. Users can only access their own bookings.
+   *     tags:
+   *       - Bookings
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Booking ID
+   *     responses:
+   *       200:
+   *         description: Booking retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       format: uuid
+   *                     services:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                         properties:
+   *                           id:
+   *                             type: string
+   *                             format: uuid
+   *                           name:
+   *                             type: string
+   *                           price:
+   *                             type: number
+   *                           durationMinutes:
+   *                             type: integer
+   *                     appointmentDatetime:
+   *                       type: string
+   *                       format: date-time
+   *                     appointmentDate:
+   *                       type: string
+   *                       format: date
+   *                     appointmentTime:
+   *                       type: string
+   *                       example: "14:30"
+   *                     status:
+   *                       type: string
+   *                       enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, PAYMENT_FAILED]
+   *                     paymentMethod:
+   *                       type: string
+   *                       enum: [CASH, STRIPE]
+   *                     totalPrice:
+   *                       type: number
+   *                     totalDurationMinutes:
+   *                       type: integer
+   *                     notes:
+   *                       type: string
+   *                       nullable: true
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *       401:
+   *         description: Unauthorized - authentication required
+   *       403:
+   *         description: Forbidden - booking belongs to another user
+   *       404:
+   *         description: Booking not found
+   */
   router.get('/:id', (req, res) => controller.getBookingById(req, res));
+
   router.post('/', (req, res) => controller.createBooking(req, res));
+
+  /**
+   * @openapi
+   * /bookings/{id}/cancel:
+   *   post:
+   *     summary: Cancel a booking
+   *     description: |
+   *       Cancels a booking. Must be cancelled at least 15 minutes before the appointment.
+   *       - For AUTHORIZED card payments: cancels the Stripe PaymentIntent (no charge).
+   *       - For CONFIRMED card payments: issues a Stripe refund.
+   *       - For cash payments: simply updates the status to CANCELLED.
+   *     tags:
+   *       - Bookings
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Booking ID
+   *     responses:
+   *       200:
+   *         description: Booking cancelled successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       format: uuid
+   *                     status:
+   *                       type: string
+   *                       enum: [CANCELLED]
+   *                     paymentMethod:
+   *                       type: string
+   *                       enum: [CASH, STRIPE]
+   *                     cancelledAt:
+   *                       type: string
+   *                       format: date-time
+   *                     refundInitiated:
+   *                       type: boolean
+   *                       description: True if a Stripe refund or cancellation was triggered
+   *                     refundAmount:
+   *                       type: number
+   *                       description: Refund amount in USD (only present when refundInitiated is true)
+   *       400:
+   *         description: Bad request - cannot cancel (wrong status or too close to appointment time)
+   *       401:
+   *         description: Unauthorized - authentication required
+   *       403:
+   *         description: Forbidden - booking belongs to another user
+   *       404:
+   *         description: Booking not found
+   */
   router.post('/:id/cancel', (req, res) => controller.cancelBooking(req, res));
 
   return router;

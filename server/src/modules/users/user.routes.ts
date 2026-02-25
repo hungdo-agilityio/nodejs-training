@@ -7,7 +7,7 @@ export const createUserRoutes = (userController: IUserController): Router => {
 
   /**
    * @openapi
-   * /me:
+   * /users/me:
    *   get:
    *     summary: Get current user profile
    *     description: Returns the authenticated user's profile information
@@ -26,13 +26,30 @@ export const createUserRoutes = (userController: IUserController): Router => {
    *                 data:
    *                   type: object
    *                   properties:
-   *                     userId:
+   *                     id:
    *                       type: string
-   *                     sessionId:
+   *                       format: uuid
+   *                     clerkUserId:
    *                       type: string
+   *                     email:
+   *                       type: string
+   *                       format: email
+   *                     firstName:
+   *                       type: string
+   *                     lastName:
+   *                       type: string
+   *                     phoneNumber:
+   *                       type: string
+   *                       nullable: true
    *                     role:
    *                       type: string
    *                       enum: [USER, STAFF, ADMIN]
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *                     updatedAt:
+   *                       type: string
+   *                       format: date-time
    *       401:
    *         description: Unauthorized
    *       404:
