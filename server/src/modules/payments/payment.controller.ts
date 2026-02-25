@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'crypto';
 import { Request, Response } from 'express';
 import { IPaymentController } from './payment.controller.interface';
+import { PaymentValidator } from './payment.validator';
 import { IStripeService } from './stripe.service.interface';
 import { BookingBusinessService } from '@modules/bookings/booking.service';
 import { BookingStatus } from '@shared/types';
@@ -19,20 +20,14 @@ export class PaymentController implements IPaymentController {
       return;
     }
 
+    const validation = PaymentValidator.validateAuthorize(req.body);
+
+    if (!validation.valid) {
+      res.status(validation.error.statusCode).json(validation.error.toJSON());
+      return;
+    }
+
     const { bookingId, idempotencyKey } = req.body;
-
-    // Validate required fields
-    if (!bookingId) {
-      const error = ApiError.validationError('bookingId is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!idempotencyKey) {
-      const error = ApiError.validationError('idempotencyKey is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
 
     // Get booking details
     const bookingResult = await this.bookingService.getBookingById(
@@ -104,28 +99,14 @@ export class PaymentController implements IPaymentController {
       return;
     }
 
+    const validation = PaymentValidator.validateCreateIntent(req.body);
+
+    if (!validation.valid) {
+      res.status(validation.error.statusCode).json(validation.error.toJSON());
+      return;
+    }
+
     const { serviceIds, appointmentDate, appointmentTime } = req.body;
-
-    // Validate required fields
-    if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-      const error = ApiError.validationError(
-        'serviceIds is required and must be a non-empty array'
-      );
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!appointmentDate) {
-      const error = ApiError.validationError('appointmentDate is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
-    if (!appointmentTime) {
-      const error = ApiError.validationError('appointmentTime is required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
 
     // Validate services and calculate total price
     const validationResult =

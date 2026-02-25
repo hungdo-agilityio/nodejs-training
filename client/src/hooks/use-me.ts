@@ -26,7 +26,7 @@ export function useMe() {
   return useQuery({
     queryKey: ['me', userId],
     queryFn: async (): Promise<User> => {
-      const response = await httpClient.get<MeResponse>('/me', getToken);
+      const response = await httpClient.get<MeResponse>('/users/me', getToken);
       return response.data;
     },
     enabled: isSignedIn && !!userId,

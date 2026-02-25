@@ -5,7 +5,7 @@ import { IServiceService } from './service.service.interface';
 export class ServiceController implements IServiceController {
   constructor(private serviceService: IServiceService) {}
 
-  async getServices(req: Request, res: Response): Promise<void> {
+  async getServices(_req: Request, res: Response): Promise<void> {
     const result = await this.serviceService.getActiveServices();
 
     if (result.isErr()) {

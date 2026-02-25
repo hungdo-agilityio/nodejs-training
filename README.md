@@ -5,14 +5,16 @@ A full-stack salon booking application built with Express.js (backend) and Next.
 ## Tech Stack
 
 **Backend**
+
 - Express.js 5 + TypeScript
 - TypeORM + SQLite
 - Clerk (JWT authentication)
 - Stripe (payment authorization & capture)
-- Swagger UI (`/api-docs`)
+- Swagger UI (`/api/docs`)
 - Vitest (testing)
 
 **Frontend**
+
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS + shadcn/ui
 - Clerk React SDK
@@ -72,48 +74,52 @@ The app will be available at `http://localhost:3001`.
 
 ### Backend (`server/.env`)
 
-| Variable | Required | Description |
-|---|---|---|
-| `NODE_ENV` | Yes | `development` or `production` |
-| `PORT` | Yes | Server port (default: `3000`) |
-| `DATABASE_PATH` | Yes | SQLite file path (e.g. `./data/salon_booking.db`) |
-| `CLERK_PUBLISHABLE_KEY` | Yes | Clerk publishable key (from Clerk dashboard) |
-| `CLERK_SECRET_KEY` | Yes | Clerk secret key (from Clerk dashboard) |
-| `CLERK_WEBHOOK_SIGNING_SECRET` | Yes | Clerk webhook signing secret (from Clerk dashboard → Webhooks) |
-| `STRIPE_SECRET_KEY` | Yes | Stripe secret key (from Stripe dashboard) |
-| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret (from Stripe dashboard → Webhooks) |
+| Variable                       | Required | Description                                                      |
+| ------------------------------ | -------- | ---------------------------------------------------------------- |
+| `NODE_ENV`                     | Yes      | `development` or `production`                                    |
+| `PORT`                         | Yes      | Server port (default: `3000`)                                    |
+| `DATABASE_PATH`                | Yes      | SQLite file path (e.g. `./data/salon_booking.db`)                |
+| `CLERK_PUBLISHABLE_KEY`        | Yes      | Clerk publishable key (from Clerk dashboard)                     |
+| `CLERK_SECRET_KEY`             | Yes      | Clerk secret key (from Clerk dashboard)                          |
+| `CLERK_WEBHOOK_SIGNING_SECRET` | Yes      | Clerk webhook signing secret (from Clerk dashboard → Webhooks)   |
+| `STRIPE_SECRET_KEY`            | Yes      | Stripe secret key (from Stripe dashboard)                        |
+| `STRIPE_WEBHOOK_SECRET`        | Yes      | Stripe webhook signing secret (from Stripe dashboard → Webhooks) |
 
 ### Frontend (`client/.env`)
 
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Yes | Backend API URL (e.g. `http://localhost:3000/api`) |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk publishable key |
-| `CLERK_SECRET_KEY` | Yes | Clerk secret key (for server-side auth) |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes | Stripe publishable key |
-| `STRIPE_SECRET_KEY` | Yes | Stripe secret key |
+| Variable                             | Required | Description                                        |
+| ------------------------------------ | -------- | -------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`                | Yes      | Backend API URL (e.g. `http://localhost:3000/api`) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | Yes      | Clerk publishable key                              |
+| `CLERK_SECRET_KEY`                   | Yes      | Clerk secret key (for server-side auth)            |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes      | Stripe publishable key                             |
+| `STRIPE_SECRET_KEY`                  | Yes      | Stripe secret key                                  |
 
 ## Database Setup
 
 The backend uses SQLite. The database file is auto-created at the path set in `DATABASE_PATH`.
 
 **Run migrations** (creates all tables):
+
 ```bash
 cd server
 npm run migration:run
 ```
 
 **Seed the database** (inserts default services):
+
 ```bash
 npm run seed
 ```
 
 **Generate a new migration** (after entity changes):
+
 ```bash
 npm run migration:generate -- src/shared/database/migrations/MigrationName
 ```
 
 **Rollback last migration:**
+
 ```bash
 npm run migration:revert
 ```
@@ -158,11 +164,13 @@ cd client && npm run type-check
 ## API Documentation
 
 Interactive Swagger docs are available at:
+
 ```
-http://localhost:3000/api-docs
+http://localhost:3000/api/docs
 ```
 
 ### Base URL
+
 ```
 http://localhost:3000/api
 ```
@@ -170,29 +178,30 @@ http://localhost:3000/api
 ### Authentication
 
 All protected endpoints require a Clerk JWT token:
+
 ```
 Authorization: Bearer <clerk_jwt_token>
 ```
 
 ### Endpoints Overview
 
-| Method | Endpoint | Auth | Role | Description |
-|---|---|---|---|---|
-| GET | `/health` | No | - | Health check |
-| GET | `/users/me` | Yes | Any | Get current user profile |
-| GET | `/services` | No | - | List all active services |
-| GET | `/slots` | No | - | Get available time slots |
-| GET | `/bookings` | Yes | USER | Get user's bookings |
-| GET | `/bookings/:id` | Yes | USER | Get booking details |
-| POST | `/bookings` | Yes | USER | Create a booking |
-| POST | `/bookings/:id/cancel` | Yes | USER | Cancel a booking |
-| POST | `/payments/create-intent` | Yes | USER | Create Stripe PaymentIntent |
-| POST | `/payments/authorize` | Yes | USER | Authorize payment for existing booking |
-| POST | `/webhooks/stripe` | No | - | Stripe webhook handler |
-| GET | `/bookings/daily` | Yes | STAFF | Get daily bookings |
-| POST | `/bookings/:id/check-in` | Yes | STAFF | Check in a customer |
-| POST | `/bookings/:id/complete` | Yes | STAFF | Mark service as complete |
-| POST | `/bookings/:id/no-show` | Yes | STAFF | Mark customer as no-show |
+| Method | Endpoint                  | Auth | Role  | Description                            |
+| ------ | ------------------------- | ---- | ----- | -------------------------------------- |
+| GET    | `/health`                 | No   | -     | Health check                           |
+| GET    | `/users/me`               | Yes  | Any   | Get current user profile               |
+| GET    | `/services`               | No   | -     | List all active services               |
+| GET    | `/slots`                  | No   | -     | Get available time slots               |
+| GET    | `/bookings`               | Yes  | USER  | Get user's bookings                    |
+| GET    | `/bookings/:id`           | Yes  | USER  | Get booking details                    |
+| POST   | `/bookings`               | Yes  | USER  | Create a booking                       |
+| POST   | `/bookings/:id/cancel`    | Yes  | USER  | Cancel a booking                       |
+| POST   | `/payments/create-intent` | Yes  | USER  | Create Stripe PaymentIntent            |
+| POST   | `/payments/authorize`     | Yes  | USER  | Authorize payment for existing booking |
+| POST   | `/webhooks/stripe`        | No   | -     | Stripe webhook handler                 |
+| GET    | `/bookings/daily`         | Yes  | STAFF | Get daily bookings                     |
+| POST   | `/bookings/:id/check-in`  | Yes  | STAFF | Check in a customer                    |
+| POST   | `/bookings/:id/complete`  | Yes  | STAFF | Mark service as complete               |
+| POST   | `/bookings/:id/no-show`   | Yes  | STAFF | Mark customer as no-show               |
 
 ## Booking Status Flow
 

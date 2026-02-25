@@ -49,16 +49,16 @@ export const createApp = (
   app.use(express.urlencoded({ extended: true }));
   app.use(clerkAuth);
 
-  // Load authenticated user from database
-  const loadUser = createLoadUser(dependencies.userService);
-
   // Swagger documentation (non-production only)
   if (NODE_ENV !== 'production') {
     app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   }
 
   // API Routes
-  app.use('/api', createApiRouter(dependencies, loadUser));
+  app.use(
+    '/api',
+    createApiRouter(dependencies, createLoadUser(dependencies.userService))
+  );
 
   // Error handling
   app.use(createErrorHandler(logger));
