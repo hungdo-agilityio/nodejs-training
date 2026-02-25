@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { NODE_ENV } from '@shared/constants';
 
 const DATABASE_PATH = process.env.DATABASE_PATH || './data/salon_booking.db';
 

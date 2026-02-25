@@ -78,7 +78,7 @@ export class BookingBusinessService implements IBookingService {
 
       // Calculate totals
       const totalPrice = services.reduce(
-        (sum, service) => sum + Number(service.price),
+        (sum, service) => sum + service.price,
         0
       );
       const totalDurationMinutes = services.reduce(
@@ -90,7 +90,7 @@ export class BookingBusinessService implements IBookingService {
       const servicesData = services.map((service) => ({
         id: service.id,
         name: service.name,
-        price: Number(service.price),
+        price: service.price,
         durationMinutes: service.durationMinutes,
       }));
 
@@ -480,7 +480,7 @@ export class BookingBusinessService implements IBookingService {
           appointmentTime,
           status: booking.status,
           paymentMethod: booking.paymentMethod,
-          totalPrice: Number(booking.totalPrice),
+          totalPrice: booking.totalPrice,
           totalDurationMinutes: booking.totalDurationMinutes,
           createdAt: booking.createdAt.toISOString(),
         };
@@ -534,7 +534,7 @@ export class BookingBusinessService implements IBookingService {
         services: booking.bookingServices.map((bs) => ({
           id: bs.serviceId,
           name: bs.serviceName,
-          price: Number(bs.servicePrice),
+          price: bs.servicePrice,
           durationMinutes: bs.serviceDurationMinutes,
         })),
         appointmentDatetime: booking.appointmentDatetime.toISOString(),
@@ -542,7 +542,7 @@ export class BookingBusinessService implements IBookingService {
         appointmentTime,
         status: booking.status,
         paymentMethod: booking.paymentMethod,
-        totalPrice: Number(booking.totalPrice),
+        totalPrice: booking.totalPrice,
         totalDurationMinutes: booking.totalDurationMinutes,
         notes: booking.notes,
         createdAt: booking.createdAt.toISOString(),
@@ -701,7 +701,7 @@ export class BookingBusinessService implements IBookingService {
         paymentMethod: booking.paymentMethod,
         cancelledAt: cancelledAt.toISOString(),
         stripePaymentIntentId: booking.stripePaymentIntentId,
-        totalPrice: Number(booking.totalPrice),
+        totalPrice: booking.totalPrice,
       });
     } catch (error) {
       this.logger.error('Failed to cancel booking', error as Error);
@@ -773,7 +773,7 @@ export class BookingBusinessService implements IBookingService {
           booking.status === BookingStatus.CHECKED_IN ||
           booking.status === BookingStatus.DONE
         ) {
-          summary.totalRevenue += Number(booking.totalPrice);
+          summary.totalRevenue += booking.totalPrice;
         }
 
         return {
@@ -788,13 +788,13 @@ export class BookingBusinessService implements IBookingService {
           services: booking.bookingServices.map((bs) => ({
             id: bs.serviceId,
             name: bs.serviceName,
-            price: Number(bs.servicePrice),
+            price: bs.servicePrice,
             durationMinutes: bs.serviceDurationMinutes,
           })),
           appointmentTime,
           status: booking.status,
           paymentMethod: booking.paymentMethod,
-          totalPrice: Number(booking.totalPrice),
+          totalPrice: booking.totalPrice,
           totalDurationMinutes: booking.totalDurationMinutes,
           notes: booking.notes,
         };

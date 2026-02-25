@@ -1,5 +1,6 @@
 import { Entity, Column } from 'typeorm';
 import { BaseEntity } from '@shared/database/entities';
+import { decimalTransformer } from '@shared/database/transformers/decimal.transformer';
 
 @Entity('services')
 export class Service extends BaseEntity {
@@ -9,7 +10,12 @@ export class Service extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: decimalTransformer,
+  })
   price: number;
 
   @Column({ name: 'duration_minutes', type: 'integer' })

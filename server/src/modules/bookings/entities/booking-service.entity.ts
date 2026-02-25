@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Booking } from './booking.entity';
 import { Service } from '@modules/services/entities/service.entity';
+import { decimalTransformer } from '@shared/database/transformers/decimal.transformer';
 
 @Entity('booking_services')
 @Index(['bookingId', 'serviceId'], { unique: true })
@@ -32,7 +33,7 @@ export class BookingService {
   @Column({ name: 'service_name', type: 'varchar', length: 100 })
   serviceName: string;
 
-  @Column({ name: 'service_price', type: 'decimal', precision: 10, scale: 2 })
+  @Column({ name: 'service_price', type: 'decimal', precision: 10, scale: 2, transformer: decimalTransformer })
   servicePrice: number;
 
   @Column({ name: 'service_duration_minutes', type: 'integer' })
