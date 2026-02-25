@@ -46,18 +46,30 @@ const statusLabels: Record<BookingStatus, string> = {
   NO_SHOW: 'No Show',
 };
 
-type SortOption = 'upcoming' | 'recent' | 'past';
+type TabOption = 'upcoming' | 'past' | 'all';
+
+const TAB_PARAMS: Record<TabOption, { startDate?: string; endDate?: string; sortBy: 'upcoming' | 'past' | 'recent' }> = {
+  upcoming: { startDate: new Date().toISOString().split('T')[0], sortBy: 'upcoming' },
+  past: { endDate: new Date(Date.now() - 86400000).toISOString().split('T')[0], sortBy: 'past' },
+  all: { sortBy: 'recent' },
+};
+
+const TAB_LABELS: Record<TabOption, string> = {
+  upcoming: 'Upcoming',
+  past: 'Past',
+  all: 'All',
+};
 
 export default function BookingsPage() {
+  const [activeTab, setActiveTab] = useState<TabOption>('upcoming');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | ''>('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentMethod | ''>('');
-  const [sortBy, setSortBy] = useState<SortOption>('upcoming');
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useGetBookings({
     status: statusFilter || undefined,
     paymentMethod: paymentFilter || undefined,
-    sortBy,
+    ...TAB_PARAMS[activeTab],
     page,
   });
 
@@ -86,76 +98,75 @@ export default function BookingsPage() {
         </Link>
       </div>
 
-      {/* Filters and Sort */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            value={statusFilter || 'ALL'}
-            onValueChange={(value) => {
-              setStatusFilter(value === 'ALL' ? '' : (value as BookingStatus));
-              setPage(1);
-            }}
+      {/* Tabs */}
+      <div className="mb-4 flex gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1 w-fit">
+        {(Object.keys(TAB_LABELS) as TabOption[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => { setActiveTab(tab); setPage(1); }}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === tab
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
-            <SelectTrigger className="w-45 cursor-pointer border-gray-200 bg-white hover:border-gray-300">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-              <SelectItem value="AUTHORIZED">Payment Held</SelectItem>
-              <SelectItem value="CHECKED_IN">Checked In</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
+            {TAB_LABELS[tab]}
+          </button>
+        ))}
+      </div>
 
-          <Select
-            value={paymentFilter || 'ALL'}
-            onValueChange={(value) => {
-              setPaymentFilter(value === 'ALL' ? '' : (value as PaymentMethod));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-50 cursor-pointer border-gray-200 bg-white hover:border-gray-300">
-              <SelectValue placeholder="All Payment Methods" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Payment Methods</SelectItem>
-              <SelectItem value="CASH">Cash</SelectItem>
-              <SelectItem value="STRIPE">Card</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {(statusFilter || paymentFilter) && (
-            <button
-              onClick={() => {
-                setStatusFilter('');
-                setPaymentFilter('');
-                setPage(1);
-              }}
-              className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-
+      {/* Filters */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Select
-          value={sortBy}
+          value={statusFilter || 'ALL'}
           onValueChange={(value) => {
-            setSortBy(value as SortOption);
+            setStatusFilter(value === 'ALL' ? '' : (value as BookingStatus));
             setPage(1);
           }}
         >
           <SelectTrigger className="w-45 cursor-pointer border-gray-200 bg-white hover:border-gray-300">
-            <SelectValue placeholder="Sort by" />
+            <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="upcoming">Upcoming first</SelectItem>
-            <SelectItem value="recent">Recently created</SelectItem>
-            <SelectItem value="past">Past first</SelectItem>
+            <SelectItem value="ALL">All Statuses</SelectItem>
+            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+            <SelectItem value="AUTHORIZED">Payment Held</SelectItem>
+            <SelectItem value="CHECKED_IN">Checked In</SelectItem>
+            <SelectItem value="DONE">Done</SelectItem>
+            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+            <SelectItem value="NO_SHOW">No Show</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select
+          value={paymentFilter || 'ALL'}
+          onValueChange={(value) => {
+            setPaymentFilter(value === 'ALL' ? '' : (value as PaymentMethod));
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-50 cursor-pointer border-gray-200 bg-white hover:border-gray-300">
+            <SelectValue placeholder="All Payment Methods" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Payment Methods</SelectItem>
+            <SelectItem value="CASH">Cash</SelectItem>
+            <SelectItem value="STRIPE">Card</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {(statusFilter || paymentFilter) && (
+          <button
+            onClick={() => {
+              setStatusFilter('');
+              setPaymentFilter('');
+              setPage(1);
+            }}
+            className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {isLoading && (
