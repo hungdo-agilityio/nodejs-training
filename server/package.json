@@ -32,6 +32,7 @@
     "@clerk/express": "^1.7.69",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "helmet": "^8.1.0",
     "reflect-metadata": "^0.2.2",
     "sqlite3": "^5.1.7",
     "stripe": "^20.3.0",
