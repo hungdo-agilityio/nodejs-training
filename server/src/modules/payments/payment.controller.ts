@@ -3,13 +3,14 @@ import { IPaymentController } from './payment.controller.interface';
 import { PaymentValidator } from './payment.validator';
 import { IStripeService } from './stripe.service.interface';
 import { BookingBusinessService } from '@modules/bookings/booking.service';
-import { BookingStatus } from '@shared/types';
+import { BookingStatus, ILogger } from '@shared/types';
 import { ApiError } from '@shared/errors';
 
 export class PaymentController implements IPaymentController {
   constructor(
     private stripeService: IStripeService,
-    private bookingService: BookingBusinessService
+    private bookingService: BookingBusinessService,
+    private logger: ILogger
   ) {}
 
   async authorizePayment(req: Request, res: Response): Promise<void> {
@@ -54,7 +55,7 @@ export class PaymentController implements IPaymentController {
     // Create Stripe PaymentIntent
     // Note: Stripe's idempotency key prevents duplicate payment intents
     const paymentIntentResult = await this.stripeService.createPaymentIntent({
-      amount: Number(booking.totalPrice),
+      amount: booking.totalPrice,
       currency: 'usd',
       bookingId: booking.id,
       userId: req.user.id,
@@ -76,6 +77,19 @@ export class PaymentController implements IPaymentController {
     );
 
     if (updateResult.isErr()) {
+      // Compensate: cancel the PaymentIntent to avoid an orphaned card hold.
+      // Best-effort — log failure but continue returning the original error.
+      const cancelResult = await this.stripeService.cancelPaymentIntent(
+        paymentIntent.id
+      );
+
+      if (cancelResult.isErr()) {
+        this.logger.error(
+          `Failed to cancel PaymentIntent ${paymentIntent.id} after booking update failure. Manual cleanup required.`,
+          new Error(cancelResult.getError().message)
+        );
+      }
+
       const error = updateResult.getError();
       res.status(error.statusCode).json(error.toJSON());
       return;
