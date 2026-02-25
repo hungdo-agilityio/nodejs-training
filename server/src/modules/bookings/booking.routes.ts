@@ -21,7 +21,7 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *         name: status
    *         schema:
    *           type: string
-   *           enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, COMPLETED, CANCELLED, EXPIRED]
+   *           enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, PAYMENT_FAILED]
    *         description: Filter by booking status
    *       - in: query
    *         name: payment_method
@@ -203,7 +203,7 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *                       type: integer
    *                     status:
    *                       type: string
-   *                       enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, COMPLETED, CANCELLED, EXPIRED]
+   *                       enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, PAYMENT_FAILED]
    *                       description: CONFIRMED for cash payments, PENDING_PAYMENT for card payments
    *                     idempotencyKey:
    *                       type: string
@@ -298,7 +298,7 @@ export function createBookingRoutes(controller: IBookingController): Router {
    *                         example: "14:30"
    *                       status:
    *                         type: string
-   *                         enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, EXPIRED]
+   *                         enum: [PENDING_PAYMENT, CONFIRMED, AUTHORIZED, CHECKED_IN, DONE, CANCELLED, NO_SHOW, PAYMENT_FAILED]
    *                       paymentMethod:
    *                         type: string
    *                         enum: [CASH, STRIPE]
