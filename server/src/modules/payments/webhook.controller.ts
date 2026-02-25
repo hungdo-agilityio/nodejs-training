@@ -45,17 +45,16 @@ export class WebhookController implements IWebhookController {
 
     switch (event.type) {
       case 'payment_intent.amount_capturable_updated':
-        // This event is sent when a payment is authorized (manual capture)
-        result = await this.handlePaymentIntentSucceeded(
+        // Fired when a payment is authorized (manual capture) — set AUTHORIZED
+        result = await this.handlePaymentAuthorized(
           event.data.object as Stripe.PaymentIntent
         );
         break;
 
       case 'payment_intent.succeeded':
-        // This event is sent when a payment is captured or auto-captured
-        result = await this.handlePaymentIntentSucceeded(
-          event.data.object as Stripe.PaymentIntent
-        );
+        // Fired when payment is captured — check-in flow already advanced the
+        // booking to CHECKED_IN before capturing, so no status change needed.
+        result = Result.ok(undefined);
         break;
 
       case 'payment_intent.payment_failed':
@@ -84,7 +83,7 @@ export class WebhookController implements IWebhookController {
     res.status(200).json({ received: true });
   }
 
-  private async handlePaymentIntentSucceeded(
+  private async handlePaymentAuthorized(
     paymentIntent: Stripe.PaymentIntent
   ): Promise<Result<void, ApiError>> {
     const bookingId = paymentIntent.metadata.bookingId;
