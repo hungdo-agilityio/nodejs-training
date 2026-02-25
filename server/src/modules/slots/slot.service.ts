@@ -1,5 +1,5 @@
 import { Repository, In } from 'typeorm';
-import { Result } from '@shared/utils';
+import { Result, DateUtils } from '@shared/utils';
 import { ILogger } from '@shared/types';
 import { ApiError } from '@shared/errors';
 import {
@@ -30,11 +30,11 @@ export class SlotService implements ISlotService {
       const { date, serviceIds } = params;
 
       // Validate date format and ensure it's not in the past
-      const requestedDate = new Date(date);
+      const requestedDate = DateUtils.parseLocalDate(date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      if (isNaN(requestedDate.getTime())) {
+      if (!requestedDate) {
         return Result.err(
           ApiError.validationError('Invalid date format. Use YYYY-MM-DD')
         );
@@ -133,18 +133,17 @@ export class SlotService implements ISlotService {
 
       // Mark past slots as unavailable for today
       const now = new Date();
-      const isToday =
-        requestedDate.getFullYear() === now.getFullYear() &&
-        requestedDate.getMonth() === now.getMonth() &&
-        requestedDate.getDate() === now.getDate();
+      const isToday = DateUtils.isSameDay(requestedDate, now);
 
       if (isToday) {
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
         slotsWithAvailability = slotsWithAvailability.map((slot) => {
           const [h, m] = slot.startTime.split(':').map(Number);
+
           if (h * 60 + m <= currentMinutes) {
             return { ...slot, available: false };
           }
+
           return slot;
         });
       }
