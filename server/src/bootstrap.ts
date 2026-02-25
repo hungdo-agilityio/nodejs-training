@@ -110,7 +110,8 @@ const registerDependencies = (
 
   const paymentController = new PaymentController(
     stripeService,
-    bookingBusinessService
+    bookingBusinessService,
+    logger
   );
   container.registerValue(TOKENS.PaymentController, paymentController);
 
