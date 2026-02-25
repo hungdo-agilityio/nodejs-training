@@ -4,13 +4,15 @@ import { BookingBusinessService } from './booking.service';
 import { CancelBookingResult } from './booking.service.interface';
 import { BookingValidator } from './booking.validator';
 import { IStripeService } from '@modules/payments/stripe.service.interface';
-import { PaymentMethod, BookingStatus } from '@shared/types';
+import { PaymentMethod, BookingStatus, ILogger } from '@shared/types';
 import { ApiError } from '@shared/errors';
+import { Result } from '@shared/utils';
 
 export class BookingController implements IBookingController {
   constructor(
     private bookingService: BookingBusinessService,
-    private stripeService: IStripeService
+    private stripeService: IStripeService,
+    private logger: ILogger
   ) {}
 
   async createBooking(req: Request, res: Response): Promise<void> {
@@ -148,16 +150,27 @@ export class BookingController implements IBookingController {
     }
 
     const cancelResult = result.getValue();
-    const stripeResult = await this.reverseStripePayment(cancelResult);
+    const reversalResult = await this.reverseStripePayment(cancelResult);
 
+    if (reversalResult.isErr()) {
+      const error = reversalResult.getError();
+      this.logger.error(
+        `Payment reversal failed for cancelled booking ${cancelResult.id}. Manual intervention required.`,
+        new Error(error.message)
+      );
+      res.status(error.statusCode).json(error.toJSON());
+      return;
+    }
+
+    const refundInitiated = reversalResult.getValue();
     res.json({
       data: {
         id: cancelResult.id,
         status: cancelResult.status,
         paymentMethod: cancelResult.paymentMethod,
         cancelledAt: cancelResult.cancelledAt,
-        refundInitiated: stripeResult,
-        ...(stripeResult && { refundAmount: cancelResult.totalPrice }),
+        refundInitiated,
+        ...(refundInitiated && { refundAmount: cancelResult.totalPrice }),
       },
     });
   }
@@ -235,12 +248,12 @@ export class BookingController implements IBookingController {
    */
   private async reverseStripePayment(
     cancelResult: CancelBookingResult
-  ): Promise<boolean> {
+  ): Promise<Result<boolean, ApiError>> {
     if (
       cancelResult.paymentMethod !== PaymentMethod.STRIPE ||
       !cancelResult.stripePaymentIntentId
     ) {
-      return false;
+      return Result.ok(false);
     }
 
     const { previousStatus, stripePaymentIntentId } = cancelResult;
@@ -249,18 +262,18 @@ export class BookingController implements IBookingController {
       const result = await this.stripeService.cancelPaymentIntent(
         stripePaymentIntentId
       );
-
-      return result.isOk();
+      if (result.isErr()) return Result.err(result.getError());
+      return Result.ok(true);
     }
 
     if (previousStatus === BookingStatus.CONFIRMED) {
       const result = await this.stripeService.createRefund(
         stripePaymentIntentId
       );
-
-      return result.isOk();
+      if (result.isErr()) return Result.err(result.getError());
+      return Result.ok(true);
     }
 
-    return false;
+    return Result.ok(false);
   }
 }

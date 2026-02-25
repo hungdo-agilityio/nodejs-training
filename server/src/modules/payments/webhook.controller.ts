@@ -74,9 +74,15 @@ export class WebhookController implements IWebhookController {
     }
 
     if (result.isErr()) {
+      const error = result.getError();
       this.logger.error(
-        `Webhook processing failed for ${event.type} (${event.id}): ${result.getError().message}`
+        `Webhook processing failed for ${event.type} (${event.id}): ${error.message}`
       );
+
+      if (error.statusCode >= 500) {
+        res.status(500).json({ received: false });
+        return;
+      }
     }
 
     // Always return 200 to acknowledge receipt

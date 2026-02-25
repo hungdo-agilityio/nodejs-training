@@ -1,13 +1,14 @@
-import { Repository, In } from 'typeorm';
+import { Repository, In, DataSource, EntityManager } from 'typeorm';
 import { createHash } from 'crypto';
 import { ILogger, BookingStatus, PaymentMethod } from '@shared/types';
 import { Result } from '@shared/utils';
-import { DEFAULT_CAPACITY } from '@shared/constants/business-hours';
+import { DEFAULT_CAPACITY } from '@shared/constants';
 import { ApiError } from '@shared/errors';
-import { Service } from '@modules/services/entities/service.entity';
-import { IStripeService } from '@modules/payments/stripe.service.interface';
+import { Service } from '@modules/services';
+import { IStripeService } from '@modules/payments';
 import { Booking } from './entities/booking.entity';
 import { BookingService as BookingServiceEntity } from './entities/booking-service.entity';
+import { BookingValidator } from './booking.validator';
 import {
   IBookingService,
   CreateBookingDTO,
@@ -38,10 +39,10 @@ import {
 export class BookingBusinessService implements IBookingService {
   constructor(
     private bookingRepository: Repository<Booking>,
-    private bookingServiceRepository: Repository<BookingServiceEntity>,
     private serviceRepository: Repository<Service>,
     private stripeService: IStripeService,
-    private logger: ILogger
+    private logger: ILogger,
+    private dataSource: DataSource
   ) {}
 
   /**
@@ -114,32 +115,12 @@ export class BookingBusinessService implements IBookingService {
     durationMinutes: number
   ): Promise<Result<boolean, ApiError>> {
     try {
-      // Validate date format
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(appointmentDate)) {
-        return Result.err(
-          ApiError.validationError('Invalid date format. Use YYYY-MM-DD')
-        );
-      }
-
-      // Validate time format
-      const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
-      if (!timeRegex.test(appointmentTime)) {
-        return Result.err(
-          ApiError.validationError(
-            'Invalid time format. Use HH:MM (24-hour format)'
-          )
-        );
-      }
-
-      // Reject past time slots
-      const appointmentDatetime = new Date(
-        `${appointmentDate}T${appointmentTime}:00`
+      const dtValidation = BookingValidator.validateDateTimeParams(
+        appointmentDate,
+        appointmentTime
       );
-      if (appointmentDatetime <= new Date()) {
-        return Result.err(
-          ApiError.validationError('Cannot book a time slot in the past')
-        );
+      if (!dtValidation.valid) {
+        return Result.err(dtValidation.error);
       }
 
       // Parse time
@@ -202,6 +183,58 @@ export class BookingBusinessService implements IBookingService {
   }
 
   /**
+   * Capacity check that runs inside an existing transaction.
+   * Skips date/time validation — callers must validate before entering the tx.
+   */
+  private async checkCapacityWithinTransaction(
+    manager: EntityManager,
+    appointmentDate: string,
+    appointmentTime: string,
+    durationMinutes: number
+  ): Promise<Result<void, ApiError>> {
+    const [hour, minute] = appointmentTime.split(':').map(Number);
+    const slotStartMinutes = hour * 60 + minute;
+    const slotEndMinutes = slotStartMinutes + durationMinutes;
+
+    const bookings = await manager.getRepository(Booking).find({
+      where: {
+        appointmentDate,
+        status: In([
+          BookingStatus.PENDING_PAYMENT,
+          BookingStatus.AUTHORIZED,
+          BookingStatus.CONFIRMED,
+          BookingStatus.CHECKED_IN,
+        ]),
+      },
+      select: ['appointmentDatetime', 'totalDurationMinutes'],
+    });
+
+    let occupiedCount = 0;
+    for (const booking of bookings) {
+      const bookingDate = new Date(booking.appointmentDatetime);
+      const bookingStartMinutes =
+        bookingDate.getHours() * 60 + bookingDate.getMinutes();
+      const bookingEndMinutes =
+        bookingStartMinutes + booking.totalDurationMinutes;
+
+      if (
+        bookingStartMinutes < slotEndMinutes &&
+        bookingEndMinutes > slotStartMinutes
+      ) {
+        occupiedCount++;
+      }
+    }
+
+    if (occupiedCount >= DEFAULT_CAPACITY) {
+      return Result.err(
+        ApiError.conflict('No capacity available for the requested time slot')
+      );
+    }
+
+    return Result.ok(undefined);
+  }
+
+  /**
    * Generate a unique idempotency key for the booking
    * This prevents duplicate bookings if the request is retried
    */
@@ -220,13 +253,18 @@ export class BookingBusinessService implements IBookingService {
   }
 
   /**
-   * Create a new booking
+   * Create a new booking.
+   *
+   * The capacity re-check, booking row, and booking_services rows are all
+   * written inside a single transaction so they succeed or fail atomically.
+   * This prevents overbooking under concurrency and ensures a booking is never
+   * persisted without its associated service rows.
    */
   async createBooking(
     dto: CreateBookingDTO
   ): Promise<Result<CreatedBookingResult, ApiError>> {
     try {
-      // 1. Validate services and calculate totals
+      // 1. Validate services and calculate totals (read-only, outside tx)
       const validationResult = await this.validateServicesAndCalculateTotals(
         dto.serviceIds
       );
@@ -238,7 +276,7 @@ export class BookingBusinessService implements IBookingService {
       const { totalPrice, totalDurationMinutes, services } =
         validationResult.getValue();
 
-      // 2. Check capacity availability
+      // 2. Validate date/time format and reject past slots (pure checks, outside tx)
       const capacityResult = await this.checkCapacityAvailability(
         dto.appointmentDate,
         dto.appointmentTime,
@@ -252,105 +290,128 @@ export class BookingBusinessService implements IBookingService {
       // 3. Generate idempotency key
       const idempotencyKey = this.generateIdempotencyKey(dto);
 
-      // 4. Check if booking with this idempotency key already exists
-      const existingBooking = await this.bookingRepository.findOne({
-        where: { idempotencyKey },
-      });
-
-      if (existingBooking) {
-        const terminalStatuses: BookingStatus[] = [
-          BookingStatus.CANCELLED,
-          BookingStatus.DONE,
-          BookingStatus.NO_SHOW,
-          BookingStatus.PAYMENT_FAILED,
-        ];
-
-        if (terminalStatuses.includes(existingBooking.status)) {
-          // Free up the idempotency key so the user can rebook
-          await this.bookingRepository.update(
-            { id: existingBooking.id },
-            { idempotencyKey: `${idempotencyKey}_${existingBooking.id}` }
-          );
-        } else {
-          return Result.err(ApiError.conflict('Booking already exists'));
-        }
-      }
-
-      // 5. Create appointment datetime
-      const appointmentDatetime = new Date(
-        `${dto.appointmentDate}T${dto.appointmentTime}:00`
-      );
-
-      // 6. Determine status based on payment method
+      // 4. Determine booking status
       const isCashPayment = dto.paymentMethod === PaymentMethod.CASH;
       const hasPaymentIntent = !!dto.stripePaymentIntentId;
       let status: BookingStatus;
+
       if (isCashPayment) {
         status = BookingStatus.CONFIRMED;
       } else if (hasPaymentIntent) {
-        // Card flow: booking created after successful payment authorization
         status = BookingStatus.AUTHORIZED;
       } else {
         status = BookingStatus.PENDING_PAYMENT;
       }
 
-      // 7. Create booking entity
-      const booking = this.bookingRepository.create({
-        userId: dto.userId,
-        appointmentDate: dto.appointmentDate,
-        appointmentDatetime,
-        totalDurationMinutes,
-        totalPrice,
-        paymentMethod: dto.paymentMethod,
-        status,
-        currency: 'USD',
-        idempotencyKey,
-        notes: dto.notes || null,
-        stripePaymentIntentId: dto.stripePaymentIntentId || null,
-        checkedInAt: null,
-        completedAt: null,
-        cancelledAt: null,
-      });
+      const appointmentDatetime = new Date(
+        `${dto.appointmentDate}T${dto.appointmentTime}:00`
+      );
 
-      let savedBooking: Booking;
-      try {
-        savedBooking = await this.bookingRepository.save(booking);
-      } catch (error) {
-        // Handle race condition - another request might have created the same booking
-        if (
-          error instanceof Error &&
-          (error.message.includes('UNIQUE constraint failed') ||
-            error.message.includes('duplicate key'))
-        ) {
-          return Result.err(ApiError.conflict('Booking already exists'));
+      // 5. Capacity re-check + all writes in one atomic transaction
+      const txResult = await this.dataSource.transaction<
+        Result<Booking, ApiError>
+      >(async (manager) => {
+        const bookingRepo = manager.getRepository(Booking);
+        const bookingServiceRepo = manager.getRepository(BookingServiceEntity);
+
+        // Re-check capacity inside the transaction
+        const txCapacity = await this.checkCapacityWithinTransaction(
+          manager,
+          dto.appointmentDate,
+          dto.appointmentTime,
+          totalDurationMinutes
+        );
+
+        if (txCapacity.isErr()) {
+          return Result.err(txCapacity.getError());
         }
 
-        throw error;
-      }
-
-      // 8. Create booking services
-      const bookingServices = services.map((service) => {
-        return this.bookingServiceRepository.create({
-          bookingId: savedBooking.id,
-          serviceId: service.id,
-          serviceName: service.name,
-          servicePrice: service.price,
-          serviceDurationMinutes: service.durationMinutes,
+        // Handle idempotency key collision
+        const existingBooking = await bookingRepo.findOne({
+          where: { idempotencyKey },
         });
+
+        if (existingBooking) {
+          const terminalStatuses: BookingStatus[] = [
+            BookingStatus.CANCELLED,
+            BookingStatus.DONE,
+            BookingStatus.NO_SHOW,
+            BookingStatus.PAYMENT_FAILED,
+          ];
+
+          if (terminalStatuses.includes(existingBooking.status)) {
+            // Free up the key so the user can rebook the same slot
+            await bookingRepo.update(
+              { id: existingBooking.id },
+              { idempotencyKey: `${idempotencyKey}_${existingBooking.id}` }
+            );
+          } else {
+            return Result.err(ApiError.conflict('Booking already exists'));
+          }
+        }
+
+        // Persist the booking row
+        const booking = bookingRepo.create({
+          userId: dto.userId,
+          appointmentDate: dto.appointmentDate,
+          appointmentDatetime,
+          totalDurationMinutes,
+          totalPrice,
+          paymentMethod: dto.paymentMethod,
+          status,
+          currency: 'USD',
+          idempotencyKey,
+          notes: dto.notes || null,
+          stripePaymentIntentId: dto.stripePaymentIntentId || null,
+          checkedInAt: null,
+          completedAt: null,
+          cancelledAt: null,
+        });
+
+        let savedBooking: Booking;
+        try {
+          savedBooking = await bookingRepo.save(booking);
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            (error.message.includes('UNIQUE constraint failed') ||
+              error.message.includes('duplicate key'))
+          ) {
+            return Result.err(ApiError.conflict('Booking already exists'));
+          }
+          throw error;
+        }
+
+        // Persist service rows atomically with the booking
+        const bookingServices = services.map((service) =>
+          bookingServiceRepo.create({
+            bookingId: savedBooking.id,
+            serviceId: service.id,
+            serviceName: service.name,
+            servicePrice: service.price,
+            serviceDurationMinutes: service.durationMinutes,
+          })
+        );
+
+        await bookingServiceRepo.save(bookingServices);
+
+        return Result.ok(savedBooking);
       });
 
-      await this.bookingServiceRepository.save(bookingServices);
+      if (txResult.isErr()) {
+        return Result.err(txResult.getError());
+      }
 
-      // Extract time from datetime for the response
+      const savedBooking = txResult.getValue();
       const appointmentTime = new Date(savedBooking.appointmentDatetime)
         .toTimeString()
-        .substring(0, 5); // HH:MM format
+        .substring(0, 5);
 
       return Result.ok({
         id: savedBooking.id,
         appointmentDate: savedBooking.appointmentDate,
         appointmentDatetime: savedBooking.appointmentDatetime,
-        appointmentTime: appointmentTime,
+        appointmentTime,
         totalPrice: savedBooking.totalPrice,
         totalDurationMinutes: savedBooking.totalDurationMinutes,
         status: savedBooking.status,
@@ -661,31 +722,9 @@ export class BookingBusinessService implements IBookingService {
         );
       }
 
-      const cancellableStatuses: BookingStatus[] = [
-        BookingStatus.CONFIRMED,
-        BookingStatus.AUTHORIZED,
-        BookingStatus.PENDING_PAYMENT,
-      ];
-
-      if (!cancellableStatuses.includes(booking.status)) {
-        return Result.err(
-          ApiError.validationError(
-            `Booking cannot be cancelled in ${booking.status} status`
-          )
-        );
-      }
-
-      const now = new Date();
-      const cutoff = new Date(
-        new Date(booking.appointmentDatetime).getTime() - 15 * 60 * 1000
-      );
-
-      if (now >= cutoff) {
-        return Result.err(
-          ApiError.validationError(
-            'Booking can only be cancelled at least 15 minutes before the appointment time'
-          )
-        );
+      const cancelValidation = BookingValidator.validateCancel(booking);
+      if (!cancelValidation.valid) {
+        return Result.err(cancelValidation.error);
       }
 
       const cancelledAt = new Date();
@@ -717,12 +756,9 @@ export class BookingBusinessService implements IBookingService {
     excludeCompleted = false
   ): Promise<Result<GetDailyBookingsResult, ApiError>> {
     try {
-      // Validate date format
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(date)) {
-        return Result.err(
-          ApiError.validationError('Invalid date format. Use YYYY-MM-DD')
-        );
+      const dateValidation = BookingValidator.validateDateParam(date);
+      if (!dateValidation.valid) {
+        return Result.err(dateValidation.error);
       }
 
       // Build query for bookings
@@ -829,27 +865,9 @@ export class BookingBusinessService implements IBookingService {
         return Result.err(ApiError.notFound('Booking not found'));
       }
 
-      // Validate status based on payment method
-      if (
-        booking.paymentMethod === PaymentMethod.CASH &&
-        booking.status !== BookingStatus.CONFIRMED
-      ) {
-        return Result.err(
-          ApiError.validationError(
-            `Cannot check in cash booking with status ${booking.status}. Must be CONFIRMED.`
-          )
-        );
-      }
-
-      if (
-        booking.paymentMethod === PaymentMethod.STRIPE &&
-        booking.status !== BookingStatus.AUTHORIZED
-      ) {
-        return Result.err(
-          ApiError.validationError(
-            `Cannot check in card booking with status ${booking.status}. Must be AUTHORIZED.`
-          )
-        );
+      const checkInValidation = BookingValidator.validateCheckIn(booking);
+      if (!checkInValidation.valid) {
+        return Result.err(checkInValidation.error);
       }
 
       // For Stripe payments, capture the payment
@@ -907,13 +925,9 @@ export class BookingBusinessService implements IBookingService {
         return Result.err(ApiError.notFound('Booking not found'));
       }
 
-      // Validate status (must be CHECKED_IN)
-      if (booking.status !== BookingStatus.CHECKED_IN) {
-        return Result.err(
-          ApiError.validationError(
-            `Cannot complete booking with status ${booking.status}. Must be CHECKED_IN.`
-          )
-        );
+      const completeValidation = BookingValidator.validateComplete(booking);
+      if (!completeValidation.valid) {
+        return Result.err(completeValidation.error);
       }
 
       // Update booking status to DONE
@@ -953,18 +967,9 @@ export class BookingBusinessService implements IBookingService {
         return Result.err(ApiError.notFound('Booking not found'));
       }
 
-      // Validate status (must be CONFIRMED or AUTHORIZED)
-      const allowedStatuses = [
-        BookingStatus.CONFIRMED,
-        BookingStatus.AUTHORIZED,
-      ];
-
-      if (!allowedStatuses.includes(booking.status)) {
-        return Result.err(
-          ApiError.validationError(
-            `Cannot mark booking with status ${booking.status} as no-show. Must be CONFIRMED or AUTHORIZED.`
-          )
-        );
+      const noShowValidation = BookingValidator.validateNoShow(booking);
+      if (!noShowValidation.valid) {
+        return Result.err(noShowValidation.error);
       }
 
       const previousStatus = booking.status;
