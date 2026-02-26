@@ -1,13 +1,11 @@
-import { Repository, In, DataSource, EntityManager } from 'typeorm';
 import { createHash } from 'crypto';
 import { ILogger, BookingStatus, PaymentMethod } from '@shared/types';
 import { Result } from '@shared/utils';
 import { DEFAULT_CAPACITY } from '@shared/constants';
 import { ApiError } from '@shared/errors';
-import { Service } from '@modules/services';
+import { IServiceRepository } from '@modules/services';
 import { IStripeService } from '@modules/payments';
 import { Booking } from './entities/booking.entity';
-import { BookingService as BookingServiceEntity } from './entities/booking-service.entity';
 import { BookingValidator } from './booking.validator';
 import {
   IBookingService,
@@ -26,6 +24,11 @@ import {
   CompleteBookingResult,
   NoShowBookingResult,
 } from './booking.service.interface';
+import {
+  IBookingRepository,
+  BookingCapacityError,
+  BookingDuplicateError,
+} from './booking.repository.interface';
 
 /**
  * BookingBusinessService handles all booking-related business logic
@@ -38,11 +41,10 @@ import {
  */
 export class BookingBusinessService implements IBookingService {
   constructor(
-    private bookingRepository: Repository<Booking>,
-    private serviceRepository: Repository<Service>,
+    private bookingRepository: IBookingRepository,
+    private serviceRepository: IServiceRepository,
     private stripeService: IStripeService,
-    private logger: ILogger,
-    private dataSource: DataSource
+    private logger: ILogger
   ) {}
 
   /**
@@ -63,12 +65,8 @@ export class BookingBusinessService implements IBookingService {
       const uniqueServiceIds = [...new Set(serviceIds)];
 
       // Fetch services from database
-      const services = await this.serviceRepository.find({
-        where: {
-          id: In(uniqueServiceIds),
-          isActive: true,
-        },
-      });
+      const services =
+        await this.serviceRepository.findActiveByIds(uniqueServiceIds);
 
       // Check if all services were found
       if (services.length !== uniqueServiceIds.length) {
@@ -129,18 +127,16 @@ export class BookingBusinessService implements IBookingService {
       const slotEndMinutes = slotStartMinutes + durationMinutes;
 
       // Get existing bookings for this date
-      const bookings = await this.bookingRepository.find({
-        where: {
-          appointmentDate,
-          status: In([
-            BookingStatus.PENDING_PAYMENT,
-            BookingStatus.AUTHORIZED,
-            BookingStatus.CONFIRMED,
-            BookingStatus.CHECKED_IN,
-          ]),
-        },
-        select: ['appointmentDatetime', 'totalDurationMinutes'],
-      });
+      const activeStatuses = [
+        BookingStatus.PENDING_PAYMENT,
+        BookingStatus.AUTHORIZED,
+        BookingStatus.CONFIRMED,
+        BookingStatus.CHECKED_IN,
+      ];
+      const bookings = await this.bookingRepository.findActiveByDate(
+        appointmentDate,
+        activeStatuses
+      );
 
       // Calculate how many bookings overlap with requested slot
       let occupiedCount = 0;
@@ -180,58 +176,6 @@ export class BookingBusinessService implements IBookingService {
         ApiError.internalError('Failed to check capacity availability')
       );
     }
-  }
-
-  /**
-   * Capacity check that runs inside an existing transaction.
-   * Skips date/time validation — callers must validate before entering the tx.
-   */
-  private async checkCapacityWithinTransaction(
-    manager: EntityManager,
-    appointmentDate: string,
-    appointmentTime: string,
-    durationMinutes: number
-  ): Promise<Result<void, ApiError>> {
-    const [hour, minute] = appointmentTime.split(':').map(Number);
-    const slotStartMinutes = hour * 60 + minute;
-    const slotEndMinutes = slotStartMinutes + durationMinutes;
-
-    const bookings = await manager.getRepository(Booking).find({
-      where: {
-        appointmentDate,
-        status: In([
-          BookingStatus.PENDING_PAYMENT,
-          BookingStatus.AUTHORIZED,
-          BookingStatus.CONFIRMED,
-          BookingStatus.CHECKED_IN,
-        ]),
-      },
-      select: ['appointmentDatetime', 'totalDurationMinutes'],
-    });
-
-    let occupiedCount = 0;
-    for (const booking of bookings) {
-      const bookingDate = new Date(booking.appointmentDatetime);
-      const bookingStartMinutes =
-        bookingDate.getHours() * 60 + bookingDate.getMinutes();
-      const bookingEndMinutes =
-        bookingStartMinutes + booking.totalDurationMinutes;
-
-      if (
-        bookingStartMinutes < slotEndMinutes &&
-        bookingEndMinutes > slotStartMinutes
-      ) {
-        occupiedCount++;
-      }
-    }
-
-    if (occupiedCount >= DEFAULT_CAPACITY) {
-      return Result.err(
-        ApiError.conflict('No capacity available for the requested time slot')
-      );
-    }
-
-    return Result.ok(undefined);
   }
 
   /**
@@ -308,53 +252,12 @@ export class BookingBusinessService implements IBookingService {
       );
 
       // 5. Capacity re-check + all writes in one atomic transaction
-      const txResult = await this.dataSource.transaction<
-        Result<Booking, ApiError>
-      >(async (manager) => {
-        const bookingRepo = manager.getRepository(Booking);
-        const bookingServiceRepo = manager.getRepository(BookingServiceEntity);
-
-        // Re-check capacity inside the transaction
-        const txCapacity = await this.checkCapacityWithinTransaction(
-          manager,
-          dto.appointmentDate,
-          dto.appointmentTime,
-          totalDurationMinutes
-        );
-
-        if (txCapacity.isErr()) {
-          return Result.err(txCapacity.getError());
-        }
-
-        // Handle idempotency key collision
-        const existingBooking = await bookingRepo.findOne({
-          where: { idempotencyKey },
-        });
-
-        if (existingBooking) {
-          const terminalStatuses: BookingStatus[] = [
-            BookingStatus.CANCELLED,
-            BookingStatus.DONE,
-            BookingStatus.NO_SHOW,
-            BookingStatus.PAYMENT_FAILED,
-          ];
-
-          if (terminalStatuses.includes(existingBooking.status)) {
-            // Free up the key so the user can rebook the same slot
-            await bookingRepo.update(
-              { id: existingBooking.id },
-              { idempotencyKey: `${idempotencyKey}_${existingBooking.id}` }
-            );
-          } else {
-            return Result.err(ApiError.conflict('Booking already exists'));
-          }
-        }
-
-        // Persist the booking row
-        const booking = bookingRepo.create({
+      const savedBooking =
+        await this.bookingRepository.createBookingWithServices({
           userId: dto.userId,
           appointmentDate: dto.appointmentDate,
           appointmentDatetime,
+          appointmentTime: dto.appointmentTime,
           totalDurationMinutes,
           totalPrice,
           paymentMethod: dto.paymentMethod,
@@ -363,46 +266,9 @@ export class BookingBusinessService implements IBookingService {
           idempotencyKey,
           notes: dto.notes || null,
           stripePaymentIntentId: dto.stripePaymentIntentId || null,
-          checkedInAt: null,
-          completedAt: null,
-          cancelledAt: null,
+          services,
         });
 
-        let savedBooking: Booking;
-        try {
-          savedBooking = await bookingRepo.save(booking);
-        } catch (error) {
-          if (
-            error instanceof Error &&
-            (error.message.includes('UNIQUE constraint failed') ||
-              error.message.includes('duplicate key'))
-          ) {
-            return Result.err(ApiError.conflict('Booking already exists'));
-          }
-          throw error;
-        }
-
-        // Persist service rows atomically with the booking
-        const bookingServices = services.map((service) =>
-          bookingServiceRepo.create({
-            bookingId: savedBooking.id,
-            serviceId: service.id,
-            serviceName: service.name,
-            servicePrice: service.price,
-            serviceDurationMinutes: service.durationMinutes,
-          })
-        );
-
-        await bookingServiceRepo.save(bookingServices);
-
-        return Result.ok(savedBooking);
-      });
-
-      if (txResult.isErr()) {
-        return Result.err(txResult.getError());
-      }
-
-      const savedBooking = txResult.getValue();
       const appointmentTime = new Date(savedBooking.appointmentDatetime)
         .toTimeString()
         .substring(0, 5);
@@ -417,7 +283,17 @@ export class BookingBusinessService implements IBookingService {
         status: savedBooking.status,
         idempotencyKey: savedBooking.idempotencyKey,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof BookingCapacityError) {
+        return Result.err(
+          ApiError.conflict('No capacity available for the requested time slot')
+        );
+      }
+
+      if (error instanceof BookingDuplicateError) {
+        return Result.err(ApiError.conflict('Booking already exists'));
+      }
+
       return Result.err(ApiError.internalError('Failed to create booking'));
     }
   }
@@ -429,99 +305,9 @@ export class BookingBusinessService implements IBookingService {
     filters: GetBookingsFilters
   ): Promise<Result<GetBookingsResult, ApiError>> {
     try {
-      const {
-        userId,
-        status,
-        paymentMethod,
-        serviceId,
-        date,
-        startDate,
-        endDate,
-        sortBy = 'upcoming',
-        page = 1,
-        limit = 100,
-      } = filters;
-
-      // Determine sort field and direction based on sortBy
-      let sortField: string;
-      let sortDirection: 'ASC' | 'DESC';
-
-      switch (sortBy) {
-        case 'upcoming':
-          sortField = 'booking.appointmentDatetime';
-          sortDirection = 'ASC';
-          break;
-        case 'past':
-          sortField = 'booking.appointmentDatetime';
-          sortDirection = 'DESC';
-          break;
-        case 'recent':
-        default:
-          sortField = 'booking.createdAt';
-          sortDirection = 'DESC';
-          break;
-      }
-
-      // Build query with loadRelationCountAndMap to get services count
-      const queryBuilder = this.bookingRepository
-        .createQueryBuilder('booking')
-        .loadRelationCountAndMap(
-          'booking.servicesCount',
-          'booking.bookingServices'
-        )
-        .orderBy(sortField, sortDirection);
-
-      // Apply filters
-      if (userId) {
-        queryBuilder.andWhere('booking.userId = :userId', { userId });
-      }
-
-      if (status) {
-        queryBuilder.andWhere('booking.status = :status', { status });
-      }
-
-      if (paymentMethod) {
-        queryBuilder.andWhere('booking.paymentMethod = :paymentMethod', {
-          paymentMethod,
-        });
-      }
-
-      if (serviceId) {
-        queryBuilder
-          .leftJoin('booking.bookingServices', 'bookingService')
-          .andWhere('bookingService.serviceId = :serviceId', {
-            serviceId,
-          });
-      }
-
-      if (date) {
-        queryBuilder.andWhere('booking.appointmentDate = :date', { date });
-      }
-
-      if (startDate && endDate) {
-        queryBuilder.andWhere(
-          'booking.appointmentDate BETWEEN :startDate AND :endDate',
-          { startDate, endDate }
-        );
-      } else if (startDate) {
-        queryBuilder.andWhere('booking.appointmentDate >= :startDate', {
-          startDate,
-        });
-      } else if (endDate) {
-        queryBuilder.andWhere('booking.appointmentDate <= :endDate', {
-          endDate,
-        });
-      }
-
-      // Get total count
-      const total = await queryBuilder.getCount();
-
-      // Apply pagination
-      const skip = (page - 1) * limit;
-      queryBuilder.skip(skip).take(limit);
-
-      // Execute query
-      const bookings = await queryBuilder.getMany();
+      const { page = 1, limit = 100 } = filters;
+      const { data: bookings, total } =
+        await this.bookingRepository.findWithFilters(filters);
 
       // Format response
       const data: BookingListItem[] = bookings.map((booking) => {
@@ -529,13 +315,9 @@ export class BookingBusinessService implements IBookingService {
           .toTimeString()
           .substring(0, 5);
 
-        const bookingWithCount = booking as Booking & {
-          servicesCount?: number;
-        };
-
         return {
           id: booking.id,
-          servicesCount: bookingWithCount.servicesCount || 0,
+          servicesCount: booking.servicesCount || 0,
           appointmentDatetime: booking.appointmentDatetime.toISOString(),
           appointmentDate: booking.appointmentDate,
           appointmentTime,
@@ -570,10 +352,8 @@ export class BookingBusinessService implements IBookingService {
     userId: string
   ): Promise<Result<BookingDetail, ApiError>> {
     try {
-      const booking = await this.bookingRepository.findOne({
-        where: { id: bookingId },
-        relations: ['bookingServices'],
-      });
+      const booking =
+        await this.bookingRepository.findByIdWithServices(bookingId);
 
       if (!booking) {
         return Result.err(ApiError.notFound('Booking not found'));
@@ -624,12 +404,11 @@ export class BookingBusinessService implements IBookingService {
     paymentIntentId: string
   ): Promise<Result<void, ApiError>> {
     try {
-      const result = await this.bookingRepository.update(
-        { id: bookingId },
-        { stripePaymentIntentId: paymentIntentId }
-      );
+      const updated = await this.bookingRepository.updateById(bookingId, {
+        stripePaymentIntentId: paymentIntentId,
+      });
 
-      if (result.affected === 0) {
+      if (!updated) {
         return Result.err(ApiError.notFound('Booking not found'));
       }
 
@@ -653,12 +432,11 @@ export class BookingBusinessService implements IBookingService {
     status: BookingStatus
   ): Promise<Result<void, ApiError>> {
     try {
-      const result = await this.bookingRepository.update(
-        { id: bookingId },
-        { status }
-      );
+      const updated = await this.bookingRepository.updateById(bookingId, {
+        status,
+      });
 
-      if (result.affected === 0) {
+      if (!updated) {
         return Result.err(ApiError.notFound('Booking not found'));
       }
 
@@ -678,9 +456,8 @@ export class BookingBusinessService implements IBookingService {
     paymentIntentId: string
   ): Promise<Result<Booking, ApiError>> {
     try {
-      const booking = await this.bookingRepository.findOne({
-        where: { stripePaymentIntentId: paymentIntentId },
-      });
+      const booking =
+        await this.bookingRepository.findByPaymentIntentId(paymentIntentId);
 
       if (!booking) {
         return Result.err(
@@ -708,9 +485,7 @@ export class BookingBusinessService implements IBookingService {
     userId: string
   ): Promise<Result<CancelBookingResult, ApiError>> {
     try {
-      const booking = await this.bookingRepository.findOne({
-        where: { id: bookingId },
-      });
+      const booking = await this.bookingRepository.findById(bookingId);
 
       if (!booking) {
         return Result.err(ApiError.notFound('Booking not found'));
@@ -728,10 +503,10 @@ export class BookingBusinessService implements IBookingService {
       }
 
       const cancelledAt = new Date();
-      await this.bookingRepository.update(
-        { id: bookingId },
-        { status: BookingStatus.CANCELLED, cancelledAt }
-      );
+      await this.bookingRepository.updateById(bookingId, {
+        status: BookingStatus.CANCELLED,
+        cancelledAt,
+      });
 
       return Result.ok({
         id: booking.id,
@@ -761,28 +536,14 @@ export class BookingBusinessService implements IBookingService {
         return Result.err(dateValidation.error);
       }
 
-      // Build query for bookings
-      const queryBuilder = this.bookingRepository
-        .createQueryBuilder('booking')
-        .leftJoinAndSelect('booking.user', 'user')
-        .leftJoinAndSelect('booking.bookingServices', 'bookingServices')
-        .where('booking.appointmentDate = :date', { date });
+      const excludeStatuses = excludeCompleted
+        ? [BookingStatus.DONE, BookingStatus.CANCELLED, BookingStatus.NO_SHOW]
+        : undefined;
 
-      // Apply filter to exclude completed bookings if requested
-      if (excludeCompleted) {
-        const completedStatuses = [
-          BookingStatus.DONE,
-          BookingStatus.CANCELLED,
-          BookingStatus.NO_SHOW,
-        ];
-        queryBuilder.andWhere('booking.status NOT IN (:...completedStatuses)', {
-          completedStatuses,
-        });
-      }
-
-      const bookings = await queryBuilder
-        .orderBy('booking.appointmentDatetime', 'ASC')
-        .getMany();
+      const bookings = await this.bookingRepository.findDailyWithDetails(
+        date,
+        excludeStatuses
+      );
 
       // Calculate summary statistics
       const summary: DailyBookingsSummary = {
@@ -857,9 +618,7 @@ export class BookingBusinessService implements IBookingService {
   ): Promise<Result<CheckInBookingResult, ApiError>> {
     try {
       // Get booking
-      const booking = await this.bookingRepository.findOne({
-        where: { id: bookingId },
-      });
+      const booking = await this.bookingRepository.findById(bookingId);
 
       if (!booking) {
         return Result.err(ApiError.notFound('Booking not found'));
@@ -890,13 +649,10 @@ export class BookingBusinessService implements IBookingService {
 
       // Update booking status to CHECKED_IN
       const checkedInAt = new Date();
-      await this.bookingRepository.update(
-        { id: bookingId },
-        {
-          status: BookingStatus.CHECKED_IN,
-          checkedInAt,
-        }
-      );
+      await this.bookingRepository.updateById(bookingId, {
+        status: BookingStatus.CHECKED_IN,
+        checkedInAt,
+      });
 
       return Result.ok({
         id: booking.id,
@@ -917,9 +673,7 @@ export class BookingBusinessService implements IBookingService {
   ): Promise<Result<CompleteBookingResult, ApiError>> {
     try {
       // Get booking
-      const booking = await this.bookingRepository.findOne({
-        where: { id: bookingId },
-      });
+      const booking = await this.bookingRepository.findById(bookingId);
 
       if (!booking) {
         return Result.err(ApiError.notFound('Booking not found'));
@@ -932,13 +686,10 @@ export class BookingBusinessService implements IBookingService {
 
       // Update booking status to DONE
       const completedAt = new Date();
-      await this.bookingRepository.update(
-        { id: bookingId },
-        {
-          status: BookingStatus.DONE,
-          completedAt,
-        }
-      );
+      await this.bookingRepository.updateById(bookingId, {
+        status: BookingStatus.DONE,
+        completedAt,
+      });
 
       return Result.ok({
         id: booking.id,
@@ -959,9 +710,7 @@ export class BookingBusinessService implements IBookingService {
   ): Promise<Result<NoShowBookingResult, ApiError>> {
     try {
       // Get booking
-      const booking = await this.bookingRepository.findOne({
-        where: { id: bookingId },
-      });
+      const booking = await this.bookingRepository.findById(bookingId);
 
       if (!booking) {
         return Result.err(ApiError.notFound('Booking not found'));
@@ -975,10 +724,9 @@ export class BookingBusinessService implements IBookingService {
       const previousStatus = booking.status;
 
       // Update booking status to NO_SHOW
-      await this.bookingRepository.update(
-        { id: bookingId },
-        { status: BookingStatus.NO_SHOW }
-      );
+      await this.bookingRepository.updateById(bookingId, {
+        status: BookingStatus.NO_SHOW,
+      });
 
       return Result.ok({
         id: booking.id,

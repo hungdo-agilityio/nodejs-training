@@ -1,14 +1,13 @@
-import { Repository, In } from 'typeorm';
 import { Result, DateUtils } from '@shared/utils';
-import { ILogger } from '@shared/types';
+import { BookingStatus, ILogger } from '@shared/types';
 import { ApiError } from '@shared/errors';
 import {
   BUSINESS_HOURS,
   SLOT_INTERVAL_MINUTES,
   DEFAULT_CAPACITY,
 } from '@shared/constants/business-hours';
-import { Booking } from '@modules/bookings/entities/booking.entity';
-import { Service } from '@modules/services/entities/service.entity';
+import { IBookingRepository } from '@modules/bookings';
+import { IServiceRepository } from '@modules/services';
 import {
   ISlotService,
   GetSlotsParams,
@@ -18,8 +17,8 @@ import {
 
 export class SlotService implements ISlotService {
   constructor(
-    private bookingRepository: Repository<Booking>,
-    private serviceRepository: Repository<Service>,
+    private bookingRepository: IBookingRepository,
+    private serviceRepository: IServiceRepository,
     private logger: ILogger
   ) {}
 
@@ -72,12 +71,8 @@ export class SlotService implements ISlotService {
       // Calculate total duration if services provided
       let totalDuration = 0;
       if (serviceIds && serviceIds.length > 0) {
-        const services = await this.serviceRepository.find({
-          where: {
-            id: In(serviceIds),
-            isActive: true,
-          },
-        });
+        const services =
+          await this.serviceRepository.findActiveByIds(serviceIds);
 
         if (services.length !== serviceIds.length) {
           return Result.err(
@@ -101,24 +96,21 @@ export class SlotService implements ISlotService {
       );
 
       // Get bookings for this date to calculate capacity
-      const bookings = await this.bookingRepository.find({
-        where: {
-          appointmentDate: date,
-          status: In([
-            'PENDING_PAYMENT',
-            'AUTHORIZED',
-            'CONFIRMED',
-            'CHECKED_IN',
-          ]),
-        },
-        select: ['appointmentDatetime', 'totalDurationMinutes'],
-      });
+      const activeStatuses = [
+        BookingStatus.PENDING_PAYMENT,
+        BookingStatus.AUTHORIZED,
+        BookingStatus.CONFIRMED,
+        BookingStatus.CHECKED_IN,
+      ];
+      const bookings = await this.bookingRepository.findActiveByDate(
+        date,
+        activeStatuses
+      );
 
       // Calculate occupied count for each slot
       let slotsWithAvailability = slots.map((slot) => {
         const occupied = this.calculateOccupiedCount(
           slot.startTime,
-          date,
           bookings,
           totalDuration || SLOT_INTERVAL_MINUTES
         );
@@ -260,8 +252,7 @@ export class SlotService implements ISlotService {
 
   private calculateOccupiedCount(
     slotStartTime: string,
-    date: string,
-    bookings: Booking[],
+    bookings: { appointmentDatetime: Date; totalDurationMinutes: number }[],
     duration: number
   ): number {
     const [slotHour, slotMin] = slotStartTime.split(':').map(Number);
