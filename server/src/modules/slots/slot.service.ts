@@ -172,6 +172,33 @@ export class SlotService implements ISlotService {
     }
   }
 
+  private isDuringLunch(
+    minutes: number,
+    lunchStart?: number,
+    lunchEnd?: number
+  ): boolean {
+    return (
+      lunchStart !== undefined &&
+      lunchEnd !== undefined &&
+      minutes >= lunchStart &&
+      minutes < lunchEnd
+    );
+  }
+
+  private overlapsLunch(
+    startMin: number,
+    endMin: number,
+    lunchStart?: number,
+    lunchEnd?: number
+  ): boolean {
+    return (
+      lunchStart !== undefined &&
+      lunchEnd !== undefined &&
+      startMin < lunchEnd &&
+      endMin > lunchStart
+    );
+  }
+
   private generateSlots(
     openTime: string,
     closeTime: string,
@@ -197,52 +224,38 @@ export class SlotService implements ISlotService {
     }
 
     while (currentMinutes < closeMinutes) {
-      // Check if slot is during lunch break
-      if (
-        lunchStartMin !== undefined &&
-        lunchEndMin !== undefined &&
-        currentMinutes >= lunchStartMin &&
-        currentMinutes < lunchEndMin
-      ) {
+      if (this.isDuringLunch(currentMinutes, lunchStartMin, lunchEndMin)) {
         currentMinutes += SLOT_INTERVAL_MINUTES;
         continue;
       }
 
-      // If required duration is specified, check if slot can fit
+      const endMinutes = currentMinutes + requiredDuration;
+
       if (requiredDuration > 0) {
-        const endMinutes = currentMinutes + requiredDuration;
+        if (endMinutes > closeMinutes) break;
 
-        // Check if end time exceeds close time
-        if (endMinutes > closeMinutes) {
-          break;
-        }
-
-        // Check if slot overlaps with lunch break
         if (
-          lunchStartMin !== undefined &&
-          lunchEndMin !== undefined &&
-          currentMinutes < lunchEndMin &&
-          endMinutes > lunchStartMin
+          this.overlapsLunch(
+            currentMinutes,
+            endMinutes,
+            lunchStartMin,
+            lunchEndMin
+          )
         ) {
           currentMinutes += SLOT_INTERVAL_MINUTES;
           continue;
         }
-
-        slots.push({
-          startTime: this.minutesToTime(currentMinutes),
-          endsAt: this.minutesToTime(endMinutes),
-          capacity: 0,
-          occupied: 0,
-          available: false,
-        });
-      } else {
-        slots.push({
-          startTime: this.minutesToTime(currentMinutes),
-          capacity: 0,
-          occupied: 0,
-          available: false,
-        });
       }
+
+      slots.push({
+        startTime: this.minutesToTime(currentMinutes),
+        ...(requiredDuration > 0 && {
+          endsAt: this.minutesToTime(endMinutes),
+        }),
+        capacity: 0,
+        occupied: 0,
+        available: false,
+      });
 
       currentMinutes += SLOT_INTERVAL_MINUTES;
     }

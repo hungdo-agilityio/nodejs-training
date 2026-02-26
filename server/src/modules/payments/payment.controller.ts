@@ -14,11 +14,6 @@ export class PaymentController implements IPaymentController {
   ) {}
 
   async authorizePayment(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      const error = ApiError.unauthorized('Authentication required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
 
     const validation = PaymentValidator.validateAuthorize(req.body);
 
@@ -32,14 +27,10 @@ export class PaymentController implements IPaymentController {
     // Get booking details
     const bookingResult = await this.bookingService.getBookingById(
       bookingId,
-      req.user.id
+      req.user!.id
     );
 
-    if (bookingResult.isErr()) {
-      const error = bookingResult.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (bookingResult.sendIfErr(res)) return;
 
     const booking = bookingResult.getValue();
 
@@ -58,15 +49,11 @@ export class PaymentController implements IPaymentController {
       amount: booking.totalPrice,
       currency: 'usd',
       bookingId: booking.id,
-      userId: req.user.id,
+      userId: req.user!.id,
       idempotencyKey,
     });
 
-    if (paymentIntentResult.isErr()) {
-      const error = paymentIntentResult.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (paymentIntentResult.sendIfErr(res)) return;
 
     const paymentIntent = paymentIntentResult.getValue();
 
@@ -106,11 +93,6 @@ export class PaymentController implements IPaymentController {
   }
 
   async createPaymentIntent(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      const error = ApiError.unauthorized('Authentication required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
 
     const validation = PaymentValidator.validateCreateIntent(req.body);
 
@@ -125,11 +107,7 @@ export class PaymentController implements IPaymentController {
     const validationResult =
       await this.bookingService.validateServicesAndCalculateTotals(serviceIds);
 
-    if (validationResult.isErr()) {
-      const error = validationResult.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (validationResult.sendIfErr(res)) return;
 
     const { totalPrice, totalDurationMinutes } = validationResult.getValue();
 
@@ -140,27 +118,19 @@ export class PaymentController implements IPaymentController {
       totalDurationMinutes
     );
 
-    if (capacityResult.isErr()) {
-      const error = capacityResult.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (capacityResult.sendIfErr(res)) return;
 
     // Create Stripe PaymentIntent (idempotency key derived from params in service)
     const paymentIntentResult = await this.stripeService.createPaymentIntent({
       amount: totalPrice,
       currency: 'usd',
-      userId: req.user.id,
+      userId: req.user!.id,
       serviceIds,
       appointmentDate,
       appointmentTime,
     });
 
-    if (paymentIntentResult.isErr()) {
-      const error = paymentIntentResult.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (paymentIntentResult.sendIfErr(res)) return;
 
     const paymentIntent = paymentIntentResult.getValue();
 

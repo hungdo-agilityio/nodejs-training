@@ -188,12 +188,14 @@ export default function StaffDashboard() {
           completed={
             (summary.byStatus as Record<string, number>)?.['DONE'] ?? 0
           }
+          totalRevenue={summary.totalRevenue}
         />
 
         <BookingList
           bookings={bookings}
           isLoading={isLoading}
           error={error}
+          selectedDate={selectedDate}
           onCheckIn={(b) => setConfirmAction({ type: 'check-in', booking: b })}
           onComplete={(b) => setConfirmAction({ type: 'complete', booking: b })}
           onNoShow={(b) => setConfirmAction({ type: 'no-show', booking: b })}

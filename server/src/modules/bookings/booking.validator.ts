@@ -120,22 +120,21 @@ export class BookingValidator {
     status: BookingStatus;
     stripePaymentIntentId: string | null;
   }): ValidationResult {
-    if (
-      booking.paymentMethod === PaymentMethod.CASH &&
-      booking.status !== BookingStatus.CONFIRMED
-    ) {
-      return {
-        valid: false,
-        error: ApiError.validationError(
-          `Cannot check in cash booking with status ${booking.status}. Must be CONFIRMED.`
-        ),
-      };
+    if (booking.paymentMethod === PaymentMethod.CASH) {
+      if (booking.status !== BookingStatus.CONFIRMED) {
+        return {
+          valid: false,
+          error: ApiError.validationError(
+            `Cannot check in cash booking with status ${booking.status}. Must be CONFIRMED.`
+          ),
+        };
+      }
+
+      return { valid: true };
     }
 
-    if (
-      booking.paymentMethod === PaymentMethod.STRIPE &&
-      booking.status !== BookingStatus.AUTHORIZED
-    ) {
+    // STRIPE path
+    if (booking.status !== BookingStatus.AUTHORIZED) {
       return {
         valid: false,
         error: ApiError.validationError(
@@ -144,10 +143,7 @@ export class BookingValidator {
       };
     }
 
-    if (
-      booking.paymentMethod === PaymentMethod.STRIPE &&
-      !booking.stripePaymentIntentId
-    ) {
+    if (!booking.stripePaymentIntentId) {
       return {
         valid: false,
         error: ApiError.validationError(

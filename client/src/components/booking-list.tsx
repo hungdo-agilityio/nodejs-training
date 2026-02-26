@@ -6,6 +6,7 @@ interface BookingListProps {
   bookings: StaffDailyBooking[];
   isLoading: boolean;
   error: Error | null;
+  selectedDate: string;
   onCheckIn: (booking: StaffDailyBooking) => void;
   onComplete: (booking: StaffDailyBooking) => void;
   onNoShow: (booking: StaffDailyBooking) => void;
@@ -15,6 +16,7 @@ export function BookingList({
   bookings,
   isLoading,
   error,
+  selectedDate,
   onCheckIn,
   onComplete,
   onNoShow,
@@ -51,14 +53,13 @@ export function BookingList({
       return false;
     }
 
-    // Parse appointment time (HH:MM format)
+    // Parse appointment time (HH:MM format) and combine with selected date
     const [hours, minutes] = booking.appointmentTime.split(':').map(Number);
-    const now = new Date();
-    const appointmentDateTime = new Date();
+    const appointmentDateTime = new Date(`${selectedDate}T00:00:00`);
     appointmentDateTime.setHours(hours, minutes, 0, 0);
 
     // Booking is overdue if appointment time has passed
-    return now > appointmentDateTime;
+    return new Date() > appointmentDateTime;
   };
 
   // Sort: overdue first, then by appointment time

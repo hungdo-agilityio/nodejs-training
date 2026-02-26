@@ -40,4 +40,24 @@ export class Result<T, E = Error> {
 
     return this.error!;
   }
+
+  /**
+   * If this result is an error, send the error response and return true.
+   * Returns false if the result is ok (no response sent).
+   */
+  sendIfErr(res: {
+    status(code: number): { json(body: unknown): void };
+  }): boolean {
+    if (!this.success) {
+      const error = this.error as unknown as {
+        statusCode: number;
+        toJSON(): unknown;
+      };
+      res.status(error.statusCode).json(error.toJSON());
+
+      return true;
+    }
+
+    return false;
+  }
 }

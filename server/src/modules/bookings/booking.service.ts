@@ -565,11 +565,7 @@ export class BookingBusinessService implements IBookingService {
 
         // Update summary
         summary.byStatus[booking.status]++;
-        if (
-          booking.status === BookingStatus.CONFIRMED ||
-          booking.status === BookingStatus.CHECKED_IN ||
-          booking.status === BookingStatus.DONE
-        ) {
+        if (booking.status === BookingStatus.DONE) {
           summary.totalRevenue += booking.totalPrice;
         }
 

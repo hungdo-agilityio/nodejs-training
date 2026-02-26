@@ -16,12 +16,6 @@ export class BookingController implements IBookingController {
   ) {}
 
   async createBooking(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      const error = ApiError.unauthorized('Authentication required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
     const validation = BookingValidator.validateCreate(req.body);
 
     if (!validation.valid) {
@@ -39,7 +33,7 @@ export class BookingController implements IBookingController {
     } = req.body;
 
     const result = await this.bookingService.createBooking({
-      userId: req.user.id,
+      userId: req.user!.id,
       serviceIds,
       appointmentDate,
       appointmentTime,
@@ -48,23 +42,13 @@ export class BookingController implements IBookingController {
       stripePaymentIntentId,
     });
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     const booking = result.getValue();
     res.status(201).json({ data: booking });
   }
 
   async getBookings(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      const error = ApiError.unauthorized('Authentication required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
     const {
       status,
       payment_method,
@@ -85,7 +69,7 @@ export class BookingController implements IBookingController {
     }
 
     const result = await this.bookingService.getBookings({
-      userId: req.user.id, // Users can only see their own bookings
+      userId: req.user!.id, // Users can only see their own bookings
       status: status as BookingStatus | undefined,
       paymentMethod: payment_method as PaymentMethod | undefined,
       serviceId: service_id as string | undefined,
@@ -97,57 +81,33 @@ export class BookingController implements IBookingController {
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     res.json(result.getValue());
   }
 
   async getBookingById(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      const error = ApiError.unauthorized('Authentication required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
     const { id } = req.params;
 
     const result = await this.bookingService.getBookingById(
       id as string,
-      req.user.id
+      req.user!.id
     );
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     res.json({ data: result.getValue() });
   }
 
   async cancelBooking(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      const error = ApiError.unauthorized('Authentication required');
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
-
     const { id } = req.params;
 
     const result = await this.bookingService.cancelBooking(
       id as string,
-      req.user.id
+      req.user!.id
     );
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     const cancelResult = result.getValue();
     const reversalResult = await this.reverseStripePayment(cancelResult);
@@ -190,11 +150,7 @@ export class BookingController implements IBookingController {
       excludeCompleted
     );
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     res.json(result.getValue());
   }
@@ -204,11 +160,7 @@ export class BookingController implements IBookingController {
 
     const result = await this.bookingService.checkInBooking(id as string);
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     res.json({ data: result.getValue() });
   }
@@ -218,11 +170,7 @@ export class BookingController implements IBookingController {
 
     const result = await this.bookingService.completeBooking(id as string);
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     res.json({ data: result.getValue() });
   }
@@ -232,11 +180,7 @@ export class BookingController implements IBookingController {
 
     const result = await this.bookingService.noShowBooking(id as string);
 
-    if (result.isErr()) {
-      const error = result.getError();
-      res.status(error.statusCode).json(error.toJSON());
-      return;
-    }
+    if (result.sendIfErr(res)) return;
 
     res.json({ data: result.getValue() });
   }
@@ -258,22 +202,20 @@ export class BookingController implements IBookingController {
 
     const { previousStatus, stripePaymentIntentId } = cancelResult;
 
-    if (previousStatus === BookingStatus.AUTHORIZED) {
-      const result = await this.stripeService.cancelPaymentIntent(
-        stripePaymentIntentId
-      );
-      if (result.isErr()) return Result.err(result.getError());
-      return Result.ok(true);
-    }
+    const reversalActions: Partial<
+      Record<BookingStatus, () => Promise<Result<unknown, ApiError>>>
+    > = {
+      [BookingStatus.AUTHORIZED]: () =>
+        this.stripeService.cancelPaymentIntent(stripePaymentIntentId),
+      [BookingStatus.CONFIRMED]: () =>
+        this.stripeService.createRefund(stripePaymentIntentId),
+    };
 
-    if (previousStatus === BookingStatus.CONFIRMED) {
-      const result = await this.stripeService.createRefund(
-        stripePaymentIntentId
-      );
-      if (result.isErr()) return Result.err(result.getError());
-      return Result.ok(true);
-    }
+    const action = reversalActions[previousStatus];
+    if (!action) return Result.ok(false);
 
-    return Result.ok(false);
+    const result = await action();
+    if (result.isErr()) return Result.err(result.getError());
+    return Result.ok(true);
   }
 }
