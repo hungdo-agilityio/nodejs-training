@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AppDataSource } from '@shared/database';
 import { Service } from './entities/service.entity';
 import { IServiceRepository } from './service.repository.interface';
@@ -19,5 +19,14 @@ export class ServiceRepository implements IServiceRepository {
 
   async findById(id: string): Promise<Service | null> {
     return this.repository.findOneBy({ id });
+  }
+
+  async findActiveByIds(ids: string[]): Promise<Service[]> {
+    return this.repository.find({
+      where: {
+        id: In(ids),
+        isActive: true,
+      },
+    });
   }
 }

@@ -12,9 +12,11 @@ import {
   ServiceService,
   ServiceController,
 } from '@modules/services';
-import { BookingBusinessService, BookingController } from '@modules/bookings';
-import { Booking } from '@modules/bookings/entities/booking.entity';
-import { Service } from '@modules/services/entities/service.entity';
+import {
+  BookingBusinessService,
+  BookingController,
+  BookingRepository,
+} from '@modules/bookings';
 import { ClerkWebhookHandler } from '@modules/auth';
 import {
   StripeService,
@@ -56,8 +58,8 @@ const registerDependencies = (
   const serviceRepository = new ServiceRepository();
   container.registerValue(TOKENS.ServiceRepository, serviceRepository);
 
-  const bookingRepository = dataSource.getRepository(Booking);
-  const serviceEntityRepository = dataSource.getRepository(Service);
+  const bookingRepository = new BookingRepository(dataSource);
+  container.registerValue(TOKENS.BookingRepository, bookingRepository);
 
   // Services
   const userService = new UserService(userRepository, logger);
@@ -68,7 +70,7 @@ const registerDependencies = (
 
   const slotService = new SlotService(
     bookingRepository,
-    serviceEntityRepository,
+    serviceRepository,
     logger
   );
   container.registerValue(TOKENS.SlotService, slotService);
@@ -82,10 +84,9 @@ const registerDependencies = (
 
   const bookingBusinessService = new BookingBusinessService(
     bookingRepository,
-    serviceEntityRepository,
+    serviceRepository,
     stripeService,
-    logger,
-    dataSource
+    logger
   );
   container.registerValue(TOKENS.BookingService, bookingBusinessService);
 

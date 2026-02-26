@@ -4,25 +4,24 @@ import { BookingStatus, PaymentMethod } from '@shared/types';
 
 // --- Mocks ---
 const mockBookingRepository = {
-  find: vi.fn(),
-  findOne: vi.fn(),
-  create: vi.fn(),
-  save: vi.fn(),
-  update: vi.fn(),
-  createQueryBuilder: vi.fn(),
+  findById: vi.fn(),
+  findByIdWithServices: vi.fn(),
+  findByPaymentIntentId: vi.fn(),
+  findByIdempotencyKey: vi.fn(),
+  findActiveByDate: vi.fn(),
+  findWithFilters: vi.fn(),
+  findDailyWithDetails: vi.fn(),
+  updateById: vi.fn(),
+  createBookingWithServices: vi.fn(),
 };
 
 const mockServiceRepository = {
-  find: vi.fn(),
+  findActiveByIds: vi.fn(),
 };
 
 const mockStripeService = {
   capturePayment: vi.fn(),
   cancelPaymentIntent: vi.fn(),
-};
-
-const mockDataSource = {
-  transaction: vi.fn(),
 };
 
 const mockLogger = {
@@ -45,8 +44,7 @@ describe('BookingBusinessService', () => {
       mockBookingRepository as never,
       mockServiceRepository as never,
       mockStripeService as never,
-      mockLogger,
-      mockDataSource as never
+      mockLogger
     );
   });
 
@@ -106,7 +104,7 @@ describe('BookingBusinessService', () => {
   // ─── validateServicesAndCalculateTotals ──────────────────────────────────
   describe('validateServicesAndCalculateTotals', () => {
     it('returns totals for valid services', async () => {
-      mockServiceRepository.find.mockResolvedValue([
+      mockServiceRepository.findActiveByIds.mockResolvedValue([
         { id: 'svc-1', name: 'Haircut', price: 25, durationMinutes: 30 },
         { id: 'svc-2', name: 'Coloring', price: 80, durationMinutes: 90 },
       ]);
@@ -132,7 +130,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 404 when some services are not found', async () => {
-      mockServiceRepository.find.mockResolvedValue([
+      mockServiceRepository.findActiveByIds.mockResolvedValue([
         { id: 'svc-1', name: 'Haircut', price: 25, durationMinutes: 30 },
       ]);
 
@@ -146,7 +144,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('deduplicates service IDs before fetching', async () => {
-      mockServiceRepository.find.mockResolvedValue([
+      mockServiceRepository.findActiveByIds.mockResolvedValue([
         { id: 'svc-1', name: 'Haircut', price: 25, durationMinutes: 30 },
       ]);
 
@@ -160,7 +158,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns internal error when repository throws', async () => {
-      mockServiceRepository.find.mockRejectedValue(new Error('DB error'));
+      mockServiceRepository.findActiveByIds.mockRejectedValue(new Error('DB error'));
 
       const result = await service.validateServicesAndCalculateTotals([
         'svc-1',
@@ -174,7 +172,7 @@ describe('BookingBusinessService', () => {
   // ─── checkCapacityAvailability ───────────────────────────────────────────
   describe('checkCapacityAvailability', () => {
     it('returns true when no bookings overlap', async () => {
-      mockBookingRepository.find.mockResolvedValue([]);
+      mockBookingRepository.findActiveByDate.mockResolvedValue([]);
 
       const result = await service.checkCapacityAvailability(
         futureDate,
@@ -189,7 +187,7 @@ describe('BookingBusinessService', () => {
     it('returns conflict error when slot is at capacity', async () => {
       // DEFAULT_CAPACITY = 1, so one overlapping booking fills capacity
       const appointmentDatetime = new Date(`${futureDate}T${futureTime}:00`);
-      mockBookingRepository.find.mockResolvedValue([
+      mockBookingRepository.findActiveByDate.mockResolvedValue([
         { appointmentDatetime, totalDurationMinutes: 60 },
       ]);
 
@@ -257,8 +255,8 @@ describe('BookingBusinessService', () => {
     });
 
     it('successfully cancels a CONFIRMED booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(makeBooking());
-      mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+      mockBookingRepository.findById.mockResolvedValue(makeBooking());
+      mockBookingRepository.updateById.mockResolvedValue(true);
 
       const result = await service.cancelBooking(bookingId, userId);
 
@@ -268,7 +266,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 404 when booking is not found', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
+      mockBookingRepository.findById.mockResolvedValue(null);
 
       const result = await service.cancelBooking(bookingId, userId);
 
@@ -277,7 +275,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 403 when user does not own the booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(
+      mockBookingRepository.findById.mockResolvedValue(
         makeBooking({ userId: 'other-user' })
       );
 
@@ -288,7 +286,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error for non-cancellable status', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(
+      mockBookingRepository.findById.mockResolvedValue(
         makeBooking({ status: BookingStatus.DONE })
       );
 
@@ -302,7 +300,7 @@ describe('BookingBusinessService', () => {
     it('returns validation error when within 15-minute cutoff', async () => {
       // Appointment is only 5 minutes from now
       const nearFuture = new Date(Date.now() + 5 * 60 * 1000);
-      mockBookingRepository.findOne.mockResolvedValue(
+      mockBookingRepository.findById.mockResolvedValue(
         makeBooking({ appointmentDatetime: nearFuture })
       );
 
@@ -319,10 +317,10 @@ describe('BookingBusinessService', () => {
         BookingStatus.PENDING_PAYMENT,
       ]) {
         vi.clearAllMocks();
-        mockBookingRepository.findOne.mockResolvedValue(
+        mockBookingRepository.findById.mockResolvedValue(
           makeBooking({ status })
         );
-        mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+        mockBookingRepository.updateById.mockResolvedValue(true);
 
         const result = await service.cancelBooking(bookingId, userId);
 
@@ -337,13 +335,13 @@ describe('BookingBusinessService', () => {
     const bookingId = 'booking-1';
 
     it('checks in a CONFIRMED cash booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.CONFIRMED,
         paymentMethod: PaymentMethod.CASH,
         stripePaymentIntentId: null,
       });
-      mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+      mockBookingRepository.updateById.mockResolvedValue(true);
 
       const result = await service.checkInBooking(bookingId);
 
@@ -352,7 +350,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('checks in an AUTHORIZED stripe booking and captures payment', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.AUTHORIZED,
         paymentMethod: PaymentMethod.STRIPE,
@@ -362,7 +360,7 @@ describe('BookingBusinessService', () => {
         isErr: () => false,
         getValue: () => ({}),
       });
-      mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+      mockBookingRepository.updateById.mockResolvedValue(true);
 
       const result = await service.checkInBooking(bookingId);
 
@@ -371,7 +369,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 404 when booking not found', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
+      mockBookingRepository.findById.mockResolvedValue(null);
 
       const result = await service.checkInBooking(bookingId);
 
@@ -380,7 +378,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error when cash booking is not CONFIRMED', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.PENDING_PAYMENT,
         paymentMethod: PaymentMethod.CASH,
@@ -395,7 +393,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error when stripe booking is not AUTHORIZED', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.CONFIRMED,
         paymentMethod: PaymentMethod.STRIPE,
@@ -412,7 +410,7 @@ describe('BookingBusinessService', () => {
     it('returns internal error when stripe capture fails', async () => {
       const { Result } = await import('@shared/utils');
       const { ApiError } = await import('@shared/errors');
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.AUTHORIZED,
         paymentMethod: PaymentMethod.STRIPE,
@@ -434,11 +432,11 @@ describe('BookingBusinessService', () => {
     const bookingId = 'booking-1';
 
     it('completes a CHECKED_IN booking', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.CHECKED_IN,
       });
-      mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+      mockBookingRepository.updateById.mockResolvedValue(true);
 
       const result = await service.completeBooking(bookingId);
 
@@ -447,7 +445,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 404 when booking not found', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
+      mockBookingRepository.findById.mockResolvedValue(null);
 
       const result = await service.completeBooking(bookingId);
 
@@ -456,7 +454,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns validation error when booking is not CHECKED_IN', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.CONFIRMED,
       });
@@ -474,12 +472,12 @@ describe('BookingBusinessService', () => {
     const bookingId = 'booking-1';
 
     it('marks a CONFIRMED booking as NO_SHOW', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.CONFIRMED,
         paymentMethod: PaymentMethod.CASH,
       });
-      mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+      mockBookingRepository.updateById.mockResolvedValue(true);
 
       const result = await service.noShowBooking(bookingId);
 
@@ -489,12 +487,12 @@ describe('BookingBusinessService', () => {
     });
 
     it('marks an AUTHORIZED booking as NO_SHOW', async () => {
-      mockBookingRepository.findOne.mockResolvedValue({
+      mockBookingRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.AUTHORIZED,
         paymentMethod: PaymentMethod.STRIPE,
       });
-      mockBookingRepository.update.mockResolvedValue({ affected: 1 });
+      mockBookingRepository.updateById.mockResolvedValue(true);
 
       const result = await service.noShowBooking(bookingId);
 
@@ -503,7 +501,7 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns 404 when booking not found', async () => {
-      mockBookingRepository.findOne.mockResolvedValue(null);
+      mockBookingRepository.findById.mockResolvedValue(null);
 
       const result = await service.noShowBooking(bookingId);
 
@@ -520,7 +518,7 @@ describe('BookingBusinessService', () => {
 
       for (const status of disallowed) {
         vi.clearAllMocks();
-        mockBookingRepository.findOne.mockResolvedValue({
+        mockBookingRepository.findById.mockResolvedValue({
           id: bookingId,
           status,
         });
