@@ -1,7 +1,7 @@
 import { Router, RequestHandler } from 'express';
 import { AppDependencies } from './app';
 import { createHealthRoutes } from '@modules/health';
-import { createServiceRoutes } from '@modules/services';
+import { createSalonServiceRoutes } from '@modules/salon-services';
 import { createSlotRoutes } from '@modules/slots';
 import { createUserRoutes } from '@modules/users';
 import { createBookingRoutes } from '@modules/bookings';
@@ -15,7 +15,7 @@ export const createApiRouter = (
 
   // Public routes
   router.use('/health', createHealthRoutes());
-  router.use('/services', createServiceRoutes(dependencies.serviceController));
+  router.use('/services', createSalonServiceRoutes(dependencies.salonServiceController));
   router.use('/slots', createSlotRoutes(dependencies.slotController));
 
   // Authenticated routes

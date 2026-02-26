@@ -6,13 +6,13 @@ export const TOKENS = {
 
   // Repositories
   UserRepository: 'UserRepository',
-  ServiceRepository: 'ServiceRepository',
+  SalonServiceRepository: 'SalonServiceRepository',
   BookingRepository: 'BookingRepository',
 
   // Services
   UserService: 'UserService',
   BookingService: 'BookingService',
-  ServiceService: 'ServiceService',
+  SalonServiceService: 'SalonServiceService',
   PaymentService: 'PaymentService',
   StripeService: 'StripeService',
   StaffService: 'StaffService',
@@ -25,7 +25,7 @@ export const TOKENS = {
   // Controllers
   UserController: 'UserController',
   BookingController: 'BookingController',
-  ServiceController: 'ServiceController',
+  SalonServiceController: 'SalonServiceController',
   PaymentController: 'PaymentController',
   StaffController: 'StaffController',
   SlotController: 'SlotController',

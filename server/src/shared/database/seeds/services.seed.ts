@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Service } from '@modules/services';
+import { Service } from '@modules/salon-services';
 
 interface ServiceSeedData {
   name: string;

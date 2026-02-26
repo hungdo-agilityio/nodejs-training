@@ -1,13 +1,13 @@
 import { ILogger } from '@shared/types';
 import { Result } from '@shared/utils';
 import { ApiError } from '@shared/errors';
-import { IServiceRepository } from './service.repository.interface';
-import { IServiceService } from './service.service.interface';
+import { ISalonServiceRepository } from './salon-service.repository.interface';
+import { ISalonServiceService } from './salon-service.service.interface';
 import { Service } from './entities/service.entity';
 
-export class ServiceService implements IServiceService {
+export class SalonServiceService implements ISalonServiceService {
   constructor(
-    private serviceRepository: IServiceRepository,
+    private serviceRepository: ISalonServiceRepository,
     private logger: ILogger
   ) {}
 

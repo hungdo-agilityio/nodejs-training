@@ -1,9 +1,9 @@
 import { Repository, In } from 'typeorm';
 import { AppDataSource } from '@shared/database';
 import { Service } from './entities/service.entity';
-import { IServiceRepository } from './service.repository.interface';
+import { ISalonServiceRepository } from './salon-service.repository.interface';
 
-export class ServiceRepository implements IServiceRepository {
+export class SalonServiceRepository implements ISalonServiceRepository {
   private repository: Repository<Service>;
 
   constructor() {

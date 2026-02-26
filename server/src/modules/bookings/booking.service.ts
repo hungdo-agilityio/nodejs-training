@@ -3,7 +3,7 @@ import { ILogger, BookingStatus, PaymentMethod } from '@shared/types';
 import { Result } from '@shared/utils';
 import { DEFAULT_CAPACITY } from '@shared/constants';
 import { ApiError } from '@shared/errors';
-import { IServiceRepository } from '@modules/services';
+import { ISalonServiceRepository } from '@modules/salon-services';
 import { IStripeService } from '@modules/payments';
 import { Booking } from './entities/booking.entity';
 import { BookingValidator } from './booking.validator';
@@ -42,7 +42,7 @@ import {
 export class BookingBusinessService implements IBookingService {
   constructor(
     private bookingRepository: IBookingRepository,
-    private serviceRepository: IServiceRepository,
+    private serviceRepository: ISalonServiceRepository,
     private stripeService: IStripeService,
     private logger: ILogger
   ) {}

@@ -7,7 +7,7 @@ import {
   DEFAULT_CAPACITY,
 } from '@shared/constants/business-hours';
 import { IBookingRepository } from '@modules/bookings';
-import { IServiceRepository } from '@modules/services';
+import { ISalonServiceRepository } from '@modules/salon-services';
 import {
   ISlotService,
   GetSlotsParams,
@@ -18,7 +18,7 @@ import {
 export class SlotService implements ISlotService {
   constructor(
     private bookingRepository: IBookingRepository,
-    private serviceRepository: IServiceRepository,
+    private serviceRepository: ISalonServiceRepository,
     private logger: ILogger
   ) {}
 

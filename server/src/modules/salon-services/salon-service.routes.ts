@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { IServiceController } from './service.controller.interface';
+import { ISalonServiceController } from './salon-service.controller.interface';
 
-export const createServiceRoutes = (
-  serviceController: IServiceController
+export const createSalonServiceRoutes = (
+  serviceController: ISalonServiceController
 ): Router => {
   const router = Router();
 

@@ -8,10 +8,10 @@ import { ConsoleLogger, ILogger } from '@shared/utils';
 import { UserRepository, UserService, UserController } from '@modules/users';
 import { SlotService, SlotController } from '@modules/slots';
 import {
-  ServiceRepository,
-  ServiceService,
-  ServiceController,
-} from '@modules/services';
+  SalonServiceRepository,
+  SalonServiceService,
+  SalonServiceController,
+} from '@modules/salon-services';
 import {
   BookingBusinessService,
   BookingController,
@@ -37,7 +37,7 @@ interface RegisteredDependencies {
   userController: UserController;
   userService: UserService;
   slotController: SlotController;
-  serviceController: ServiceController;
+  salonServiceController: SalonServiceController;
   bookingController: BookingController;
   paymentController: PaymentController;
   webhookController: WebhookController;
@@ -55,8 +55,8 @@ const registerDependencies = (
   const userRepository = new UserRepository();
   container.registerValue(TOKENS.UserRepository, userRepository);
 
-  const serviceRepository = new ServiceRepository();
-  container.registerValue(TOKENS.ServiceRepository, serviceRepository);
+  const salonServiceRepository = new SalonServiceRepository();
+  container.registerValue(TOKENS.SalonServiceRepository, salonServiceRepository);
 
   const bookingRepository = new BookingRepository(dataSource);
   container.registerValue(TOKENS.BookingRepository, bookingRepository);
@@ -65,12 +65,12 @@ const registerDependencies = (
   const userService = new UserService(userRepository, logger);
   container.registerValue(TOKENS.UserService, userService);
 
-  const serviceService = new ServiceService(serviceRepository, logger);
-  container.registerValue(TOKENS.ServiceService, serviceService);
+  const salonServiceService = new SalonServiceService(salonServiceRepository, logger);
+  container.registerValue(TOKENS.SalonServiceService, salonServiceService);
 
   const slotService = new SlotService(
     bookingRepository,
-    serviceRepository,
+    salonServiceRepository,
     logger
   );
   container.registerValue(TOKENS.SlotService, slotService);
@@ -84,7 +84,7 @@ const registerDependencies = (
 
   const bookingBusinessService = new BookingBusinessService(
     bookingRepository,
-    serviceRepository,
+    salonServiceRepository,
     stripeService,
     logger
   );
@@ -94,8 +94,8 @@ const registerDependencies = (
   const userController = new UserController();
   container.registerValue(TOKENS.UserController, userController);
 
-  const serviceController = new ServiceController(serviceService);
-  container.registerValue(TOKENS.ServiceController, serviceController);
+  const salonServiceController = new SalonServiceController(salonServiceService);
+  container.registerValue(TOKENS.SalonServiceController, salonServiceController);
 
   const slotController = new SlotController(slotService);
   container.registerValue(TOKENS.SlotController, slotController);
@@ -130,7 +130,7 @@ const registerDependencies = (
     userController,
     userService,
     slotController,
-    serviceController,
+    salonServiceController,
     bookingController,
     paymentController,
     webhookController,
@@ -150,7 +150,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     userController,
     userService,
     slotController,
-    serviceController,
+    salonServiceController,
     bookingController,
     paymentController,
     webhookController,
@@ -162,7 +162,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
       userController,
       userService,
       slotController,
-      serviceController,
+      salonServiceController,
       bookingController,
       paymentController,
       webhookController,

@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import { IServiceController } from './service.controller.interface';
-import { IServiceService } from './service.service.interface';
+import { ISalonServiceController } from './salon-service.controller.interface';
+import { ISalonServiceService } from './salon-service.service.interface';
 
-export class ServiceController implements IServiceController {
-  constructor(private serviceService: IServiceService) {}
+export class SalonServiceController implements ISalonServiceController {
+  constructor(private serviceService: ISalonServiceService) {}
 
   async getServices(_req: Request, res: Response): Promise<void> {
     const result = await this.serviceService.getActiveServices();

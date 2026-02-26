@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ServiceService } from './service.service';
+import { SalonServiceService } from './salon-service.service';
 
 const mockRepository = {
   findAllActive: vi.fn(),
@@ -12,12 +12,12 @@ const mockLogger = {
   error: vi.fn(),
 };
 
-describe('ServiceService', () => {
-  let service: ServiceService;
+describe('SalonServiceService', () => {
+  let service: SalonServiceService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new ServiceService(mockRepository as never, mockLogger);
+    service = new SalonServiceService(mockRepository as never, mockLogger);
   });
 
   describe('getActiveServices', () => {

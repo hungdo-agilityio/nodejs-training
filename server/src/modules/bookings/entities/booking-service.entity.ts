@@ -7,7 +7,7 @@ import {
   Index,
 } from 'typeorm';
 import { Booking } from './booking.entity';
-import { Service } from '@modules/services/entities/service.entity';
+import { Service } from '@modules/salon-services/entities/service.entity';
 import { decimalTransformer } from '@shared/database/transformers/decimal.transformer';
 
 @Entity('booking_services')

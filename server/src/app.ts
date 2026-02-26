@@ -13,7 +13,7 @@ import { swaggerSpec } from '@shared/swagger';
 import { IClerkWebhookHandler, createAuthRoutes } from '@modules/auth';
 import { IUserController, IUserService } from '@modules/users';
 import { ISlotController } from '@modules/slots';
-import { IServiceController } from '@modules/services';
+import { ISalonServiceController } from '@modules/salon-services';
 import { IBookingController } from '@modules/bookings';
 import {
   IPaymentController,
@@ -27,7 +27,7 @@ export interface AppDependencies {
   userController: IUserController;
   userService: IUserService;
   slotController: ISlotController;
-  serviceController: IServiceController;
+  salonServiceController: ISalonServiceController;
   bookingController: IBookingController;
   paymentController: IPaymentController;
   webhookController: IWebhookController;
