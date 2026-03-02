@@ -19,7 +19,7 @@ import {
 } from '@modules/bookings';
 import { ClerkWebhookHandler } from '@modules/auth';
 import {
-  StripeService,
+  PaymentService,
   PaymentController,
   WebhookController,
 } from '@modules/payments';
@@ -79,13 +79,13 @@ const registerDependencies = (
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2026-01-28.clover',
   });
-  const stripeService = new StripeService(stripe, logger);
-  container.registerValue(TOKENS.StripeService, stripeService);
+  const paymentService = new PaymentService(stripe, logger);
+  container.registerValue(TOKENS.PaymentService, paymentService);
 
   const bookingBusinessService = new BookingBusinessService(
     bookingRepository,
     salonServiceRepository,
-    stripeService,
+    paymentService,
     logger
   );
   container.registerValue(TOKENS.BookingService, bookingBusinessService);
@@ -102,20 +102,20 @@ const registerDependencies = (
 
   const bookingController = new BookingController(
     bookingBusinessService,
-    stripeService,
+    paymentService,
     logger
   );
   container.registerValue(TOKENS.BookingController, bookingController);
 
   const paymentController = new PaymentController(
-    stripeService,
+    paymentService,
     bookingBusinessService,
     logger
   );
   container.registerValue(TOKENS.PaymentController, paymentController);
 
   const webhookController = new WebhookController(
-    stripeService,
+    paymentService,
     bookingBusinessService,
     logger
   );

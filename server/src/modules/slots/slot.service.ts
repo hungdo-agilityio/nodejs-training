@@ -5,7 +5,7 @@ import {
   BUSINESS_HOURS,
   SLOT_INTERVAL_MINUTES,
   DEFAULT_CAPACITY,
-} from '@shared/constants/business-hours';
+} from '@shared/constants/business-hours.constant';
 import { IBookingRepository } from '@modules/bookings';
 import { ISalonServiceRepository } from '@modules/salon-services';
 import {

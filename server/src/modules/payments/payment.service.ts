@@ -5,11 +5,11 @@ import { Result } from '@shared/utils';
 import { ApiError } from '@shared/errors';
 import { STRIPE_WEBHOOK_SECRET } from '@shared/constants';
 import {
-  IStripeService,
+  IPaymentService,
   CreatePaymentIntentParams,
-} from './stripe.service.interface';
+} from './payment.service.interface';
 
-export class StripeService implements IStripeService {
+export class PaymentService implements IPaymentService {
   constructor(
     private stripe: Stripe,
     private logger: ILogger

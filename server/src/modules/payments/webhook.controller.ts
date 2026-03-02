@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { IWebhookController } from './webhook.controller.interface';
-import { IStripeService } from './stripe.service.interface';
+import { IPaymentService } from './payment.service.interface';
 import { BookingBusinessService } from '@modules/bookings/booking.service';
 import { ILogger, BookingStatus } from '@shared/types';
 import { Result } from '@shared/utils';
@@ -9,7 +9,7 @@ import { ApiError } from '@shared/errors';
 
 export class WebhookController implements IWebhookController {
   constructor(
-    private stripeService: IStripeService,
+    private paymentService: IPaymentService,
     private bookingService: BookingBusinessService,
     private logger: ILogger
   ) {}
@@ -26,7 +26,7 @@ export class WebhookController implements IWebhookController {
     const payload = req.body.toString('utf8');
 
     // Verify webhook signature
-    const eventResult = this.stripeService.verifyWebhookSignature(
+    const eventResult = this.paymentService.verifyWebhookSignature(
       payload,
       signature
     );

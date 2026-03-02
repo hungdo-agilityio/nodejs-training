@@ -19,7 +19,7 @@ const mockServiceRepository = {
   findActiveByIds: vi.fn(),
 };
 
-const mockStripeService = {
+const mockPaymentService = {
   capturePayment: vi.fn(),
   cancelPaymentIntent: vi.fn(),
 };
@@ -43,7 +43,7 @@ describe('BookingBusinessService', () => {
     service = new BookingBusinessService(
       mockBookingRepository as never,
       mockServiceRepository as never,
-      mockStripeService as never,
+      mockPaymentService as never,
       mockLogger
     );
   });
@@ -356,7 +356,7 @@ describe('BookingBusinessService', () => {
         paymentMethod: PaymentMethod.STRIPE,
         stripePaymentIntentId: 'pi_abc',
       });
-      mockStripeService.capturePayment.mockResolvedValue({
+      mockPaymentService.capturePayment.mockResolvedValue({
         isErr: () => false,
         getValue: () => ({}),
       });
@@ -364,7 +364,7 @@ describe('BookingBusinessService', () => {
 
       const result = await service.checkInBooking(bookingId);
 
-      expect(mockStripeService.capturePayment).toHaveBeenCalledWith('pi_abc');
+      expect(mockPaymentService.capturePayment).toHaveBeenCalledWith('pi_abc');
       expect(result.isOk()).toBe(true);
     });
 
@@ -416,7 +416,7 @@ describe('BookingBusinessService', () => {
         paymentMethod: PaymentMethod.STRIPE,
         stripePaymentIntentId: 'pi_abc',
       });
-      mockStripeService.capturePayment.mockResolvedValue(
+      mockPaymentService.capturePayment.mockResolvedValue(
         Result.err(ApiError.internalError('Stripe down'))
       );
 
