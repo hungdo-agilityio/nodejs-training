@@ -4,7 +4,7 @@ import { Result } from '@shared/utils';
 import { DEFAULT_CAPACITY } from '@shared/constants';
 import { ApiError } from '@shared/errors';
 import { ISalonServiceRepository } from '@modules/salon-services';
-import { IStripeService } from '@modules/payments';
+import { IPaymentService } from '@modules/payments';
 import { Booking } from './entities/booking.entity';
 import { BookingValidator } from './booking.validator';
 import {
@@ -43,7 +43,7 @@ export class BookingBusinessService implements IBookingService {
   constructor(
     private bookingRepository: IBookingRepository,
     private serviceRepository: ISalonServiceRepository,
-    private stripeService: IStripeService,
+    private paymentService: IPaymentService,
     private logger: ILogger
   ) {}
 
@@ -630,7 +630,7 @@ export class BookingBusinessService implements IBookingService {
         booking.paymentMethod === PaymentMethod.STRIPE &&
         booking.stripePaymentIntentId
       ) {
-        const captureResult = await this.stripeService.capturePayment(
+        const captureResult = await this.paymentService.capturePayment(
           booking.stripePaymentIntentId
         );
 

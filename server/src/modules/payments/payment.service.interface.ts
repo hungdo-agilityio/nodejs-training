@@ -13,7 +13,7 @@ export interface CreatePaymentIntentParams {
   appointmentTime?: string;
 }
 
-export interface IStripeService {
+export interface IPaymentService {
   /**
    * Create a PaymentIntent with manual capture for authorization
    */

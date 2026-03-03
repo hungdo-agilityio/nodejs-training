@@ -1,5 +1,5 @@
-export { StripeService } from './stripe.service';
-export { IStripeService } from './stripe.service.interface';
+export { PaymentService } from './payment.service';
+export { IPaymentService } from './payment.service.interface';
 export { PaymentController } from './payment.controller';
 export { IPaymentController } from './payment.controller.interface';
 export { WebhookController } from './webhook.controller';

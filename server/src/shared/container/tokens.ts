@@ -14,7 +14,6 @@ export const TOKENS = {
   BookingService: 'BookingService',
   SalonServiceService: 'SalonServiceService',
   PaymentService: 'PaymentService',
-  StripeService: 'StripeService',
   StaffService: 'StaffService',
   SlotService: 'SlotService',
 

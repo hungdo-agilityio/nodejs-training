@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
 import { IPaymentController } from './payment.controller.interface';
 import { PaymentValidator } from './payment.validator';
-import { IStripeService } from './stripe.service.interface';
+import { IPaymentService } from './payment.service.interface';
 import { BookingBusinessService } from '@modules/bookings/booking.service';
 import { BookingStatus, ILogger } from '@shared/types';
 import { ApiError } from '@shared/errors';
 
 export class PaymentController implements IPaymentController {
   constructor(
-    private stripeService: IStripeService,
+    private paymentService: IPaymentService,
     private bookingService: BookingBusinessService,
     private logger: ILogger
   ) {}
@@ -44,7 +44,7 @@ export class PaymentController implements IPaymentController {
 
     // Create Stripe PaymentIntent
     // Note: Stripe's idempotency key prevents duplicate payment intents
-    const paymentIntentResult = await this.stripeService.createPaymentIntent({
+    const paymentIntentResult = await this.paymentService.createPaymentIntent({
       amount: booking.totalPrice,
       currency: 'usd',
       bookingId: booking.id,
@@ -65,7 +65,7 @@ export class PaymentController implements IPaymentController {
     if (updateResult.isErr()) {
       // Compensate: cancel the PaymentIntent to avoid an orphaned card hold.
       // Best-effort — log failure but continue returning the original error.
-      const cancelResult = await this.stripeService.cancelPaymentIntent(
+      const cancelResult = await this.paymentService.cancelPaymentIntent(
         paymentIntent.id
       );
 
@@ -119,7 +119,7 @@ export class PaymentController implements IPaymentController {
     if (capacityResult.sendIfErr(res)) return;
 
     // Create Stripe PaymentIntent (idempotency key derived from params in service)
-    const paymentIntentResult = await this.stripeService.createPaymentIntent({
+    const paymentIntentResult = await this.paymentService.createPaymentIntent({
       amount: totalPrice,
       currency: 'usd',
       userId: req.user!.id,

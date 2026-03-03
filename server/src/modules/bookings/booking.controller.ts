@@ -3,7 +3,7 @@ import { IBookingController } from './booking.controller.interface';
 import { BookingBusinessService } from './booking.service';
 import { CancelBookingResult } from './booking.service.interface';
 import { BookingValidator } from './booking.validator';
-import { IStripeService } from '@modules/payments/stripe.service.interface';
+import { IPaymentService } from '@modules/payments/payment.service.interface';
 import { PaymentMethod, BookingStatus, ILogger } from '@shared/types';
 import { ApiError } from '@shared/errors';
 import { Result } from '@shared/utils';
@@ -11,7 +11,7 @@ import { Result } from '@shared/utils';
 export class BookingController implements IBookingController {
   constructor(
     private bookingService: BookingBusinessService,
-    private stripeService: IStripeService,
+    private paymentService: IPaymentService,
     private logger: ILogger
   ) {}
 
@@ -206,9 +206,9 @@ export class BookingController implements IBookingController {
       Record<BookingStatus, () => Promise<Result<unknown, ApiError>>>
     > = {
       [BookingStatus.AUTHORIZED]: () =>
-        this.stripeService.cancelPaymentIntent(stripePaymentIntentId),
+        this.paymentService.cancelPaymentIntent(stripePaymentIntentId),
       [BookingStatus.CONFIRMED]: () =>
-        this.stripeService.createRefund(stripePaymentIntentId),
+        this.paymentService.createRefund(stripePaymentIntentId),
     };
 
     const action = reversalActions[previousStatus];
