@@ -82,7 +82,10 @@ describe('UserService', () => {
 
       expect(result.isOk()).toBe(true);
       expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'john@example.com', clerkUserId: 'clerk_abc' })
+        expect.objectContaining({
+          email: 'john@example.com',
+          clerkUserId: 'clerk_abc',
+        })
       );
     });
 
@@ -101,7 +104,11 @@ describe('UserService', () => {
     });
 
     it('returns validation error when no primary email exists', async () => {
-      const badClerkData = { ...clerkData, email_addresses: [], primary_email_address_id: 'missing' };
+      const badClerkData = {
+        ...clerkData,
+        email_addresses: [],
+        primary_email_address_id: 'missing',
+      };
 
       const result = await service.syncUserFromClerk(badClerkData);
 

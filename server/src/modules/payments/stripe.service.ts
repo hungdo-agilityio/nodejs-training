@@ -41,7 +41,15 @@ export class StripeService implements IStripeService {
       const resolvedIdempotencyKey =
         idempotencyKey ??
         `pi_${createHash('sha256')
-          .update(JSON.stringify({ userId, bookingId, serviceIds: [...(serviceIds ?? [])].sort(), appointmentDate, appointmentTime }))
+          .update(
+            JSON.stringify({
+              userId,
+              bookingId,
+              serviceIds: [...(serviceIds ?? [])].sort(),
+              appointmentDate,
+              appointmentTime,
+            })
+          )
           .digest('hex')
           .substring(0, 32)}`;
 

@@ -12,7 +12,9 @@ describe('PaymentValidator', () => {
     });
 
     it('returns error when bookingId is missing', () => {
-      const result = PaymentValidator.validateAuthorize({ idempotencyKey: 'key' });
+      const result = PaymentValidator.validateAuthorize({
+        idempotencyKey: 'key',
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.error.message).toContain('bookingId');
@@ -47,7 +49,10 @@ describe('PaymentValidator', () => {
     });
 
     it('returns error when serviceIds is empty', () => {
-      const result = PaymentValidator.validateCreateIntent({ ...validBody, serviceIds: [] });
+      const result = PaymentValidator.validateCreateIntent({
+        ...validBody,
+        serviceIds: [],
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.error.message).toContain('serviceIds');
@@ -55,7 +60,10 @@ describe('PaymentValidator', () => {
     });
 
     it('returns error when serviceIds is not an array', () => {
-      const result = PaymentValidator.validateCreateIntent({ ...validBody, serviceIds: 'svc-1' });
+      const result = PaymentValidator.validateCreateIntent({
+        ...validBody,
+        serviceIds: 'svc-1',
+      });
       expect(result.valid).toBe(false);
     });
 

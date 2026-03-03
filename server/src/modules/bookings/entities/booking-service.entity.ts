@@ -33,7 +33,13 @@ export class BookingService {
   @Column({ name: 'service_name', type: 'varchar', length: 100 })
   serviceName: string;
 
-  @Column({ name: 'service_price', type: 'decimal', precision: 10, scale: 2, transformer: decimalTransformer })
+  @Column({
+    name: 'service_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: decimalTransformer,
+  })
   servicePrice: number;
 
   @Column({ name: 'service_duration_minutes', type: 'integer' })

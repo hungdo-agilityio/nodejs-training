@@ -8,11 +8,15 @@ describe('StringValidator', () => {
     });
 
     it('returns error for undefined', () => {
-      expect(StringValidator.isRequired(undefined, 'field')).toBe('field is required');
+      expect(StringValidator.isRequired(undefined, 'field')).toBe(
+        'field is required'
+      );
     });
 
     it('returns error for null', () => {
-      expect(StringValidator.isRequired(null, 'field')).toBe('field is required');
+      expect(StringValidator.isRequired(null, 'field')).toBe(
+        'field is required'
+      );
     });
 
     it('returns error for empty string', () => {
@@ -26,15 +30,21 @@ describe('StringValidator', () => {
     });
 
     it('returns error for a number', () => {
-      expect(StringValidator.isString(42, 'field')).toBe('field must be a string');
+      expect(StringValidator.isString(42, 'field')).toBe(
+        'field must be a string'
+      );
     });
 
     it('returns error for an array', () => {
-      expect(StringValidator.isString([], 'field')).toBe('field must be a string');
+      expect(StringValidator.isString([], 'field')).toBe(
+        'field must be a string'
+      );
     });
 
     it('returns error for an object', () => {
-      expect(StringValidator.isString({}, 'field')).toBe('field must be a string');
+      expect(StringValidator.isString({}, 'field')).toBe(
+        'field must be a string'
+      );
     });
 
     it('returns null for an empty string (type check only)', () => {
@@ -46,7 +56,9 @@ describe('StringValidator', () => {
     const allowed = ['CASH', 'STRIPE'];
 
     it('returns null when value is in allowed list', () => {
-      expect(StringValidator.isEnum('CASH', allowed, 'paymentMethod')).toBeNull();
+      expect(
+        StringValidator.isEnum('CASH', allowed, 'paymentMethod')
+      ).toBeNull();
     });
 
     it('returns error when value is not in allowed list', () => {

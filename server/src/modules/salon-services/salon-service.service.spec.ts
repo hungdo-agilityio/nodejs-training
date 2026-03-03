@@ -23,8 +23,20 @@ describe('SalonServiceService', () => {
   describe('getActiveServices', () => {
     it('returns active services on success', async () => {
       const fakeServices = [
-        { id: '1', name: 'Haircut', price: 25, durationMinutes: 30, isActive: true },
-        { id: '2', name: 'Coloring', price: 80, durationMinutes: 90, isActive: true },
+        {
+          id: '1',
+          name: 'Haircut',
+          price: 25,
+          durationMinutes: 30,
+          isActive: true,
+        },
+        {
+          id: '2',
+          name: 'Coloring',
+          price: 80,
+          durationMinutes: 90,
+          isActive: true,
+        },
       ];
       mockRepository.findAllActive.mockResolvedValue(fakeServices);
 

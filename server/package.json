@@ -18,7 +18,9 @@
     "format:check": "prettier --check .",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "vitest --config vitest.config.e2e.ts",
+    "test:e2e:run": "vitest run --config vitest.config.e2e.ts"
   },
   "keywords": [
     "express",

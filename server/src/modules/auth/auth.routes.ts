@@ -33,10 +33,8 @@ export const createAuthRoutes = (
    *       500:
    *         description: Failed to process webhook
    */
-  router.post(
-    '/clerk',
-    express.raw({ type: 'application/json' }),
-    (req, res) => dependencies.clerkWebhookHandler.handle(req, res)
+  router.post('/clerk', express.raw({ type: 'application/json' }), (req, res) =>
+    dependencies.clerkWebhookHandler.handle(req, res)
   );
 
   return router;

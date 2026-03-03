@@ -6,7 +6,11 @@ import { ApiError } from '@shared/errors';
  * Middleware that requires authentication
  * Returns 401 JSON response if no valid session is found (API-friendly, no redirects)
  */
-export const requireAuthentication = (req: Request, res: Response, next: NextFunction): void => {
+export const requireAuthentication = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const auth = getAuth(req);
 
   if (!auth.userId) {

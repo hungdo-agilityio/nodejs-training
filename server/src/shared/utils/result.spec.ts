@@ -41,14 +41,18 @@ describe('Result', () => {
   describe('getValue', () => {
     it('throws when called on an error result', () => {
       const result = Result.err(new Error('oops'));
-      expect(() => result.getValue()).toThrow('Cannot get value from error result');
+      expect(() => result.getValue()).toThrow(
+        'Cannot get value from error result'
+      );
     });
   });
 
   describe('getError', () => {
     it('throws when called on a success result', () => {
       const result = Result.ok('fine');
-      expect(() => result.getError()).toThrow('Cannot get error from success result');
+      expect(() => result.getError()).toThrow(
+        'Cannot get error from success result'
+      );
     });
   });
 });

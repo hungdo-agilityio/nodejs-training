@@ -15,13 +15,24 @@ export const createApiRouter = (
 
   // Public routes
   router.use('/health', createHealthRoutes());
-  router.use('/services', createSalonServiceRoutes(dependencies.salonServiceController));
+  router.use(
+    '/services',
+    createSalonServiceRoutes(dependencies.salonServiceController)
+  );
   router.use('/slots', createSlotRoutes(dependencies.slotController));
 
   // Authenticated routes
   router.use('/users', loadUser, createUserRoutes(dependencies.userController));
-  router.use('/bookings', loadUser, createBookingRoutes(dependencies.bookingController));
-  router.use('/payments', loadUser, createPaymentRoutes(dependencies.paymentController));
+  router.use(
+    '/bookings',
+    loadUser,
+    createBookingRoutes(dependencies.bookingController)
+  );
+  router.use(
+    '/payments',
+    loadUser,
+    createPaymentRoutes(dependencies.paymentController)
+  );
 
   return router;
 };

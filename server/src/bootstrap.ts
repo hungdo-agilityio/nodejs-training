@@ -56,7 +56,10 @@ const registerDependencies = (
   container.registerValue(TOKENS.UserRepository, userRepository);
 
   const salonServiceRepository = new SalonServiceRepository();
-  container.registerValue(TOKENS.SalonServiceRepository, salonServiceRepository);
+  container.registerValue(
+    TOKENS.SalonServiceRepository,
+    salonServiceRepository
+  );
 
   const bookingRepository = new BookingRepository(dataSource);
   container.registerValue(TOKENS.BookingRepository, bookingRepository);
@@ -65,7 +68,10 @@ const registerDependencies = (
   const userService = new UserService(userRepository, logger);
   container.registerValue(TOKENS.UserService, userService);
 
-  const salonServiceService = new SalonServiceService(salonServiceRepository, logger);
+  const salonServiceService = new SalonServiceService(
+    salonServiceRepository,
+    logger
+  );
   container.registerValue(TOKENS.SalonServiceService, salonServiceService);
 
   const slotService = new SlotService(
@@ -94,8 +100,13 @@ const registerDependencies = (
   const userController = new UserController();
   container.registerValue(TOKENS.UserController, userController);
 
-  const salonServiceController = new SalonServiceController(salonServiceService);
-  container.registerValue(TOKENS.SalonServiceController, salonServiceController);
+  const salonServiceController = new SalonServiceController(
+    salonServiceService
+  );
+  container.registerValue(
+    TOKENS.SalonServiceController,
+    salonServiceController
+  );
 
   const slotController = new SlotController(slotService);
   container.registerValue(TOKENS.SlotController, slotController);

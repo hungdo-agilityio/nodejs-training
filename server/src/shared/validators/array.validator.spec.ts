@@ -9,23 +9,33 @@ describe('ArrayValidator', () => {
     });
 
     it('returns error for a string', () => {
-      expect(ArrayValidator.isArray('not an array', 'items')).toBe('items must be an array');
+      expect(ArrayValidator.isArray('not an array', 'items')).toBe(
+        'items must be an array'
+      );
     });
 
     it('returns error for a number', () => {
-      expect(ArrayValidator.isArray(42, 'items')).toBe('items must be an array');
+      expect(ArrayValidator.isArray(42, 'items')).toBe(
+        'items must be an array'
+      );
     });
 
     it('returns error for undefined', () => {
-      expect(ArrayValidator.isArray(undefined, 'items')).toBe('items must be an array');
+      expect(ArrayValidator.isArray(undefined, 'items')).toBe(
+        'items must be an array'
+      );
     });
 
     it('returns error for null', () => {
-      expect(ArrayValidator.isArray(null, 'items')).toBe('items must be an array');
+      expect(ArrayValidator.isArray(null, 'items')).toBe(
+        'items must be an array'
+      );
     });
 
     it('returns error for an object', () => {
-      expect(ArrayValidator.isArray({}, 'items')).toBe('items must be an array');
+      expect(ArrayValidator.isArray({}, 'items')).toBe(
+        'items must be an array'
+      );
     });
   });
 
@@ -36,7 +46,9 @@ describe('ArrayValidator', () => {
     });
 
     it('returns error for an empty array', () => {
-      expect(ArrayValidator.isNonEmpty([], 'serviceIds')).toBe('serviceIds must not be empty');
+      expect(ArrayValidator.isNonEmpty([], 'serviceIds')).toBe(
+        'serviceIds must not be empty'
+      );
     });
 
     it('returns array type error when given a non-array', () => {

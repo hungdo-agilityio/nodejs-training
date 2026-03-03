@@ -14,7 +14,6 @@ export class PaymentController implements IPaymentController {
   ) {}
 
   async authorizePayment(req: Request, res: Response): Promise<void> {
-
     const validation = PaymentValidator.validateAuthorize(req.body);
 
     if (!validation.valid) {
@@ -93,7 +92,6 @@ export class PaymentController implements IPaymentController {
   }
 
   async createPaymentIntent(req: Request, res: Response): Promise<void> {
-
     const validation = PaymentValidator.validateCreateIntent(req.body);
 
     if (!validation.valid) {

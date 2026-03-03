@@ -34,9 +34,7 @@ describe('FieldValidator', () => {
   });
 
   it('is valid when all validations pass', () => {
-    const v = new FieldValidator()
-      .validate(() => null)
-      .validate(() => null);
+    const v = new FieldValidator().validate(() => null).validate(() => null);
 
     expect(v.isValid()).toBe(true);
     expect(v.getErrors()).toEqual([]);

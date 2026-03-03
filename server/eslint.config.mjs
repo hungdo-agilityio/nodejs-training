@@ -12,7 +12,11 @@ export default [
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: 'module',
-        project: ['./tsconfig.json', './tsconfig.test.json'],
+        project: [
+          './tsconfig.json',
+          './tsconfig.test.json',
+          './tsconfig.e2e.json',
+        ],
       },
       globals: {
         process: 'readonly',
@@ -41,6 +45,7 @@ export default [
       '**/*.js',
       '**/*.mjs',
       'vitest.config.ts',
+      'vitest.config.e2e.ts',
     ],
   },
 ];

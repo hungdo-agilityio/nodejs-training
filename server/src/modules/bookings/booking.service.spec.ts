@@ -158,7 +158,9 @@ describe('BookingBusinessService', () => {
     });
 
     it('returns internal error when repository throws', async () => {
-      mockServiceRepository.findActiveByIds.mockRejectedValue(new Error('DB error'));
+      mockServiceRepository.findActiveByIds.mockRejectedValue(
+        new Error('DB error')
+      );
 
       const result = await service.validateServicesAndCalculateTotals([
         'svc-1',
