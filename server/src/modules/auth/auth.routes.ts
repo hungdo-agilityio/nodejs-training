@@ -2,12 +2,12 @@ import { Router } from 'express';
 import express from 'express';
 import { IClerkWebhookHandler } from './webhooks/clerk-webhook.handler.interface';
 
-export interface AuthRouteDependencies {
+export interface ClerkWebhookRouteDependencies {
   clerkWebhookHandler: IClerkWebhookHandler;
 }
 
-export const createAuthRoutes = (
-  dependencies: AuthRouteDependencies
+export const createClerkWebhookRoutes = (
+  dependencies: ClerkWebhookRouteDependencies
 ): Router => {
   const router = Router();
 
@@ -33,7 +33,7 @@ export const createAuthRoutes = (
    *       500:
    *         description: Failed to process webhook
    */
-  router.post('/clerk', express.raw({ type: 'application/json' }), (req, res) =>
+  router.post('/', express.raw({ type: 'application/json' }), (req, res) =>
     dependencies.clerkWebhookHandler.handle(req, res)
   );
 

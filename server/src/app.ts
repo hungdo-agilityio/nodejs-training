@@ -10,7 +10,7 @@ import {
 } from '@shared/middleware';
 import { NODE_ENV } from '@shared/constants';
 import { swaggerSpec } from '@shared/swagger';
-import { IClerkWebhookHandler, createAuthRoutes } from '@modules/auth';
+import { IClerkWebhookHandler, createClerkWebhookRoutes } from '@modules/auth';
 import { IUserController, IUserService } from '@modules/users';
 import { ISlotController } from '@modules/slots';
 import { ISalonServiceController } from '@modules/salon-services';
@@ -18,7 +18,7 @@ import { IBookingController } from '@modules/bookings';
 import {
   IPaymentController,
   IWebhookController,
-  createWebhookRoutes,
+  createStripeWebhookRoutes,
 } from '@modules/payments';
 import { createApiRouter } from './routes';
 
@@ -44,8 +44,8 @@ export const createApp = (
   app.use(cors());
 
   // Webhook routes (need raw body, must come before express.json())
-  app.use('/api/webhooks', createAuthRoutes(dependencies));
-  app.use('/api/webhooks', createWebhookRoutes(dependencies.webhookController));
+  app.use('/api/webhooks/clerk', createClerkWebhookRoutes(dependencies));
+  app.use('/api/webhooks/stripe', createStripeWebhookRoutes(dependencies.webhookController));
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
