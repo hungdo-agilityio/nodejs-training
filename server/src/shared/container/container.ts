@@ -1,79 +1,22 @@
-export enum ServiceLifetime {
-  SINGLETON = 'singleton',
-  SCOPED = 'scoped',
-  TRANSIENT = 'transient',
-}
-
-type Factory<T> = (container: Container) => T;
-
-interface ServiceRegistration<T> {
-  factory: Factory<T>;
-  lifetime: ServiceLifetime;
-  instance?: T;
-}
-
 export class Container {
-  private services = new Map<string, ServiceRegistration<unknown>>();
-  private scopedInstances = new Map<string, unknown>();
-
-  register<T>(
-    token: string,
-    factory: Factory<T>,
-    lifetime: ServiceLifetime = ServiceLifetime.TRANSIENT
-  ): void {
-    this.services.set(token, { factory, lifetime });
-  }
+  private services = new Map<string, unknown>();
 
   registerValue<T>(token: string, value: T): void {
-    this.services.set(token, {
-      factory: () => value,
-      lifetime: ServiceLifetime.SINGLETON,
-      instance: value,
-    });
+    this.services.set(token, value);
   }
 
   resolve<T>(token: string): T {
-    const registration = this.services.get(token);
+    const instance = this.services.get(token);
 
-    if (!registration) {
+    if (instance === undefined) {
       throw new Error(`Service not found: ${token}`);
     }
 
-    switch (registration.lifetime) {
-      case ServiceLifetime.SINGLETON:
-        if (!registration.instance) {
-          registration.instance = registration.factory(this);
-        }
-
-        return registration.instance as T;
-
-      case ServiceLifetime.SCOPED:
-        if (!this.scopedInstances.has(token)) {
-          this.scopedInstances.set(token, registration.factory(this));
-        }
-
-        return this.scopedInstances.get(token) as T;
-
-      case ServiceLifetime.TRANSIENT:
-      default:
-        return registration.factory(this) as T;
-    }
-  }
-
-  createScope(): Container {
-    const scopedContainer = new Container();
-    scopedContainer.services = new Map(this.services);
-
-    return scopedContainer;
-  }
-
-  clearScope(): void {
-    this.scopedInstances.clear();
+    return instance as T;
   }
 
   clear(): void {
     this.services.clear();
-    this.scopedInstances.clear();
   }
 }
 
