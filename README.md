@@ -24,7 +24,8 @@ A full-stack salon booking application built with Express.js (backend) and Next.
 ## Prerequisites
 
 - Node.js 18+
-- npm 9+
+- pnpm 10+
+- Docker (optional, for containerized runs)
 
 ## Getting Started
 
@@ -39,33 +40,33 @@ cd nodejs-training
 
 ```bash
 cd server
-npm install
+pnpm install
 cp .env.example .env
 ```
 
 Fill in the `.env` file (see [Environment Variables](#environment-variables) below), then run migrations and seed:
 
 ```bash
-npm run migration:run
-npm run seed
-npm run dev
+pnpm run migration:run
+pnpm run seed
+pnpm run dev
 ```
 
 The API will be available at `http://localhost:3000`.
-Swagger docs: `http://localhost:3000/api-docs`
+Swagger docs: `http://localhost:3000/api/docs`
 
 ### 3. Frontend Setup
 
 ```bash
 cd client
-npm install
+pnpm install
 cp .env.example .env
 ```
 
 Fill in the `.env` file, then start the dev server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The app will be available at `http://localhost:3001`.
@@ -103,25 +104,25 @@ The backend uses SQLite. The database file is auto-created at the path set in `D
 
 ```bash
 cd server
-npm run migration:run
+pnpm run migration:run
 ```
 
 **Seed the database** (inserts default services):
 
 ```bash
-npm run seed
+pnpm run seed
 ```
 
 **Generate a new migration** (after entity changes):
 
 ```bash
-npm run migration:generate -- src/shared/database/migrations/MigrationName
+pnpm run migration:generate -- src/shared/database/migrations/MigrationName
 ```
 
 **Rollback last migration:**
 
 ```bash
-npm run migration:revert
+pnpm run migration:revert
 ```
 
 ## Running the App
@@ -130,35 +131,57 @@ npm run migration:revert
 
 ```bash
 # Backend (http://localhost:3000)
-cd server && npm run dev
+cd server && pnpm run dev
 
 # Frontend (http://localhost:3001)
-cd client && npm run dev
+cd client && pnpm run dev
 ```
 
 ### Production
 
 ```bash
 # Backend
-cd server && npm run build && npm run start
+cd server && pnpm run build && pnpm run start
 
 # Frontend
-cd client && npm run build && npm run start
+cd client && pnpm run build && pnpm run start
 ```
+
+### Docker (Backend only)
+
+```bash
+cd server
+
+# Build the image
+docker build -t salon-booking-server .
+
+# Run the container (mount your .env file)
+docker run -p 3000:3000 -v $(pwd)/.env:/app/.env salon-booking-server
+```
+
+The server will be available at `http://localhost:3000`.
+
+> **Note:** The SQLite database lives inside the container at `/app/data/`. To persist it across container restarts, mount a volume:
+> ```bash
+> docker run -p 3000:3000 \
+>   -v $(pwd)/.env:/app/.env \
+>   -v $(pwd)/data:/app/data \
+>   salon-booking-server
+> ```
 
 ### Other Commands
 
 ```bash
 # Run tests
-cd server && npm run test
-cd server && npm run test:coverage
+cd server && pnpm run test
+cd server && pnpm run test:coverage
 
 # Lint & format
-npm run lint
-npm run format
+pnpm run lint
+pnpm run format
 
 # Type check (frontend)
-cd client && npm run type-check
+cd client && pnpm run type-check
 ```
 
 ## API Documentation
@@ -238,6 +261,8 @@ Payment failure (via webhook):
 ```
 nodejs-training/
 ├── server/                     # Express.js backend
+│   ├── Dockerfile              # Multi-stage Docker build
+│   ├── .dockerignore
 │   └── src/
 │       ├── modules/            # Feature modules
 │       │   ├── auth/           # Clerk webhook sync
