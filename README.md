@@ -25,7 +25,7 @@ A full-stack salon booking application built with Express.js (backend) and Next.
 
 - Node.js 18+
 - pnpm 10+
-- Docker (optional, for containerized runs)
+- Docker & Docker Compose (optional, for containerized runs)
 
 ## Getting Started
 
@@ -147,27 +147,44 @@ cd server && pnpm run build && pnpm run start
 cd client && pnpm run build && pnpm run start
 ```
 
-### Docker (Backend only)
+### Docker (Full Stack)
+
+#### 1. Set up environment files
 
 ```bash
-cd server
-
-# Build the image
-docker build -t salon-booking-server .
-
-# Run the container (mount your .env file)
-docker run -p 3000:3000 -v $(pwd)/.env:/app/.env salon-booking-server
+cp server/.env.example server/.env
+cp client/.env.example client/.env
 ```
 
-The server will be available at `http://localhost:3000`.
+Fill in both `.env` files with your Clerk and Stripe keys.
 
-> **Note:** The SQLite database lives inside the container at `/app/data/`. To persist it across container restarts, mount a volume:
-> ```bash
-> docker run -p 3000:3000 \
->   -v $(pwd)/.env:/app/.env \
->   -v $(pwd)/data:/app/data \
->   salon-booking-server
-> ```
+#### 2. Add ngrok auth token
+
+Create a root `.env` file for Docker Compose:
+
+```bash
+# .env (root)
+NGROK_AUTHTOKEN=your_ngrok_token_here
+```
+
+Get your token at https://dashboard.ngrok.com/get-started/your-authtoken
+
+#### 3. Run
+
+```bash
+docker compose up --build
+```
+
+| Service | URL | Description |
+| ------- | --- | ----------- |
+| Frontend | http://localhost:3001 | Next.js UI |
+| Backend API | http://localhost:3000 | Express API |
+| Swagger docs | http://localhost:3000/api/docs | API docs |
+| ngrok inspector | http://localhost:4040 | Tunnel URL for webhooks |
+
+Use the tunnel URL from http://localhost:4040 for your Clerk and Stripe webhook configs.
+
+> **Note:** SQLite data is persisted in a Docker volume (`salon_data`) across container restarts.
 
 ### Other Commands
 
@@ -260,6 +277,8 @@ Payment failure (via webhook):
 
 ```
 nodejs-training/
+├── docker-compose.yml          # Full-stack Docker setup (server + client + ngrok)
+├── .env                        # Root env (NGROK_AUTHTOKEN only)
 ├── server/                     # Express.js backend
 │   ├── Dockerfile              # Multi-stage Docker build
 │   ├── .dockerignore
@@ -281,6 +300,8 @@ nodejs-training/
 │           └── types/          # Shared enums and interfaces
 │
 └── client/                     # Next.js frontend
+    ├── Dockerfile              # Multi-stage Docker build
+    ├── .dockerignore
     └── src/
         ├── app/                # App Router pages
         │   ├── (auth)/         # Sign-in, sign-up
