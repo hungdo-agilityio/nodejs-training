@@ -142,7 +142,9 @@ export function createPaymentRoutes(controller: IPaymentController): Router {
   return router;
 }
 
-export function createStripeWebhookRoutes(controller: IWebhookController): Router {
+export function createStripeWebhookRoutes(
+  controller: IWebhookController
+): Router {
   const router = Router();
 
   /**
@@ -187,10 +189,8 @@ export function createStripeWebhookRoutes(controller: IWebhookController): Route
    *       400:
    *         description: Invalid signature or unrecognized event
    */
-  router.post(
-    '/',
-    express.raw({ type: 'application/json' }),
-    (req, res) => controller.handleStripeWebhook(req, res)
+  router.post('/', express.raw({ type: 'application/json' }), (req, res) =>
+    controller.handleStripeWebhook(req, res)
   );
 
   return router;

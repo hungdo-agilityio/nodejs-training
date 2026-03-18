@@ -45,7 +45,10 @@ export const createApp = (
 
   // Webhook routes (need raw body, must come before express.json())
   app.use('/api/webhooks/clerk', createClerkWebhookRoutes(dependencies));
-  app.use('/api/webhooks/stripe', createStripeWebhookRoutes(dependencies.webhookController));
+  app.use(
+    '/api/webhooks/stripe',
+    createStripeWebhookRoutes(dependencies.webhookController)
+  );
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
