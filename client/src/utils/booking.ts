@@ -117,7 +117,9 @@ export const formatTimeSlots = (
 /**
  * Convert 24-hour time format (HH:MM) to 12-hour format for display
  */
-export const formatTimeForDisplay = (time24: string | null | undefined): string => {
+export const formatTimeForDisplay = (
+  time24: string | null | undefined
+): string => {
   if (!time24) return '';
 
   const [hours, minutes] = time24.split(':');

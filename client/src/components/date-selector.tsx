@@ -48,22 +48,26 @@ export function DateSelector({
               type="button"
               onClick={() => onSelectDate(dateOption.date)}
               className={cn(
-                'flex h-auto min-w-25 cursor-pointer flex-col rounded-lg border bg-white py-3 px-4 transition-all',
+                'flex h-auto min-w-25 cursor-pointer flex-col rounded-lg border bg-white px-4 py-3 transition-all',
                 isSelected
                   ? 'border-sky-500 shadow-xl shadow-sky-500/20'
                   : 'border-gray-200 shadow-lg hover:border-sky-300 hover:shadow-xl'
               )}
             >
-              <span className={cn(
-                'text-xs font-medium uppercase',
-                isSelected ? 'text-sky-600' : 'text-gray-600'
-              )}>
+              <span
+                className={cn(
+                  'text-xs font-medium uppercase',
+                  isSelected ? 'text-sky-600' : 'text-gray-600'
+                )}
+              >
                 {dateOption.dayOfWeek}
               </span>
-              <span className={cn(
-                'mt-1 text-sm font-semibold',
-                isSelected ? 'text-sky-900' : 'text-gray-900'
-              )}>
+              <span
+                className={cn(
+                  'mt-1 text-sm font-semibold',
+                  isSelected ? 'text-sky-900' : 'text-gray-900'
+                )}
+              >
                 {dateOption.displayDate}
               </span>
               <span className="mt-1 text-xs text-gray-500">
@@ -77,7 +81,7 @@ export function DateSelector({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="flex h-auto min-w-25 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white py-3 px-4 shadow-lg transition-all hover:border-sky-300 hover:shadow-xl"
+              className="flex h-auto min-w-25 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg transition-all hover:border-sky-300 hover:shadow-xl"
             >
               <CalendarIcon className="mx-auto h-6 w-6 text-gray-600" />
               <span className="mt-1 text-xs font-medium text-gray-600">

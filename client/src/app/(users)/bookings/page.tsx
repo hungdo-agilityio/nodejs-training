@@ -48,9 +48,22 @@ const statusLabels: Record<BookingStatus, string> = {
 
 type TabOption = 'upcoming' | 'past' | 'all';
 
-const TAB_PARAMS: Record<TabOption, { startDate?: string; endDate?: string; sortBy: 'upcoming' | 'past' | 'recent' }> = {
-  upcoming: { startDate: new Date().toISOString().split('T')[0], sortBy: 'upcoming' },
-  past: { endDate: new Date(Date.now() - 86400000).toISOString().split('T')[0], sortBy: 'past' },
+const TAB_PARAMS: Record<
+  TabOption,
+  {
+    startDate?: string;
+    endDate?: string;
+    sortBy: 'upcoming' | 'past' | 'recent';
+  }
+> = {
+  upcoming: {
+    startDate: new Date().toISOString().split('T')[0],
+    sortBy: 'upcoming',
+  },
+  past: {
+    endDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    sortBy: 'past',
+  },
   all: { sortBy: 'recent' },
 };
 
@@ -99,12 +112,15 @@ export default function BookingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-4 flex gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1 w-fit">
+      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1">
         {(Object.keys(TAB_LABELS) as TabOption[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => { setActiveTab(tab); setPage(1); }}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
+            onClick={() => {
+              setActiveTab(tab);
+              setPage(1);
+            }}
+            className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
               activeTab === tab
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'

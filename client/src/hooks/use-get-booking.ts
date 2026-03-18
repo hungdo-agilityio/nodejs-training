@@ -9,10 +9,7 @@ interface GetBookingResponse {
 
 export function useGetBooking(
   bookingId: string,
-  options?: Omit<
-    UseQueryOptions<BookingDetail, Error>,
-    'queryKey' | 'queryFn'
-  >
+  options?: Omit<UseQueryOptions<BookingDetail, Error>, 'queryKey' | 'queryFn'>
 ) {
   const { getToken } = useAuth();
 

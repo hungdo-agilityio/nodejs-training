@@ -134,7 +134,11 @@ export function DateTimeStep({
 
       {selectedDate && selectedTime && (
         <div className="mt-6 border-t border-gray-200 pt-6">
-          <Button onClick={onConfirm} className="w-full bg-gray-900 hover:bg-gray-800" size="lg">
+          <Button
+            onClick={onConfirm}
+            className="w-full bg-gray-900 hover:bg-gray-800"
+            size="lg"
+          >
             Continue to Review
           </Button>
         </div>

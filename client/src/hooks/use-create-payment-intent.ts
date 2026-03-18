@@ -36,12 +36,11 @@ export function useCreatePaymentIntent(
   return useMutation({
     ...options,
     mutationFn: async (data: CreatePaymentIntentRequest) => {
-      const response =
-        await httpClient.post<CreatePaymentIntentResponse>(
-          '/payments/create-intent',
-          data,
-          getToken
-        );
+      const response = await httpClient.post<CreatePaymentIntentResponse>(
+        '/payments/create-intent',
+        data,
+        getToken
+      );
 
       return response.data;
     },

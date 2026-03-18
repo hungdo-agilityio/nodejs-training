@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --background: 0 0% 100%;
@@ -87,7 +87,7 @@ body {
 
 /* Hide Clerk UserButton sign out option */
 .cl-userButtonPopoverFooter,
-button[data-action="signOut"],
-[data-localization-key="userButton.action__signOut"] {
+button[data-action='signOut'],
+[data-localization-key='userButton.action__signOut'] {
   display: none !important;
 }

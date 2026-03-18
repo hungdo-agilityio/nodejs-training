@@ -69,7 +69,8 @@ class HttpClient {
 
       const error: ApiError = {
         code: errorData.error?.code || 'UNKNOWN_ERROR',
-        message: errorData.error?.message || errorData.message || 'Request failed',
+        message:
+          errorData.error?.message || errorData.message || 'Request failed',
       };
 
       throw error;

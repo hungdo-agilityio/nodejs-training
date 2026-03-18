@@ -52,26 +52,35 @@ export function ServiceStep({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">
-                {selectedServiceIds.length} service{selectedServiceIds.length > 1 ? 's' : ''} selected
+                {selectedServiceIds.length} service
+                {selectedServiceIds.length > 1 ? 's' : ''} selected
               </span>
             </div>
 
             <div className="flex items-center justify-between py-2">
-              <span className="text-sm font-medium text-gray-700">Total Duration</span>
+              <span className="text-sm font-medium text-gray-700">
+                Total Duration
+              </span>
               <span className="text-base font-semibold text-gray-900">
                 {formatDuration(totalDuration)}
               </span>
             </div>
 
             <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-              <span className="text-base font-medium text-gray-900">Total Price</span>
+              <span className="text-base font-medium text-gray-900">
+                Total Price
+              </span>
               <span className="text-2xl font-bold text-gray-900">
                 ${totalPrice.toFixed(2)}
               </span>
             </div>
           </div>
 
-          <Button onClick={onContinue} className="w-full bg-gray-900 hover:bg-gray-800" size="lg">
+          <Button
+            onClick={onContinue}
+            className="w-full bg-gray-900 hover:bg-gray-800"
+            size="lg"
+          >
             Continue to Date & Time
           </Button>
         </div>
