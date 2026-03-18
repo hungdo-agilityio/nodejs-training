@@ -1,0 +1,51 @@
+import js from '@eslint/js';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+import prettier from 'eslint-config-prettier';
+
+export default [
+  js.configs.recommended,
+  {
+    files: ['**/*.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        project: [
+          './tsconfig.json',
+          './tsconfig.test.json',
+          './tsconfig.e2e.json',
+        ],
+      },
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+  prettier,
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      '**/*.js',
+      '**/*.mjs',
+      'vitest.config.ts',
+      'vitest.config.e2e.ts',
+    ],
+  },
+];

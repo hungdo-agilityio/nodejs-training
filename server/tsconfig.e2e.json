@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "module": "esnext",
+    "types": ["vite/client"]
+  },
+  "include": ["test/**/*", "vitest.config.e2e.ts"]
+}

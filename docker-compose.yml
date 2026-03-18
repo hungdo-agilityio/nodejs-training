@@ -1,0 +1,35 @@
+services:
+  server:
+    build:
+      context: ./server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server/.env:/app/.env:ro
+      - salon_data:/app/data
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./client/.env
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command: http server:3000 --log=stdout
+    ports:
+      - "4040:4040"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  salon_data:

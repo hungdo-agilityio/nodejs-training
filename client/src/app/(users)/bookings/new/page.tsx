@@ -1,0 +1,336 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import {
+  useAvailableSlots,
+  useServices,
+  useCreateBooking,
+  useCreatePaymentIntent,
+} from '@/hooks';
+import { ServiceStep } from '@/components/booking-steps/service-step';
+import { DateTimeStep } from '@/components/booking-steps/datetime-step';
+import { ReviewStep } from '@/components/booking-steps/review-step';
+import { PaymentStep } from '@/components/booking-steps/payment-step';
+import { StripeCheckout } from '@/components/stripe-checkout';
+import {
+  calculateTotalDuration,
+  generateDateOptions,
+  formatTimeSlots,
+  formatTimeForDisplay,
+} from '@/utils/booking';
+import { getDefaultDate } from '@/utils/date';
+import { PaymentMethod } from '@/types/booking';
+
+export default function NewBookingPage() {
+  const router = useRouter();
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
+    null
+  );
+  const [step, setStep] = useState<
+    'services' | 'datetime' | 'review' | 'payment' | 'stripe-payment'
+  >('services');
+
+  // Card flow state: store payment intent info after Stripe payment
+  const [paymentIntentData, setPaymentIntentData] = useState<{
+    clientSecret: string;
+    paymentIntentId: string;
+  } | null>(null);
+
+  const { data: services } = useServices();
+
+  const createPaymentIntent = useCreatePaymentIntent({
+    onSuccess: (data) => {
+      setPaymentIntentData({
+        clientSecret: data.clientSecret,
+        paymentIntentId: data.paymentIntentId,
+      });
+      setStep('stripe-payment');
+    },
+    onError: (error) => {
+      toast.error('Failed to initialize payment', {
+        description: error.message || 'Please try again later',
+      });
+    },
+  });
+
+  const createBooking = useCreateBooking({
+    onSuccess: (booking) => {
+      toast.success('Booking created successfully!', {
+        description: `Your appointment is confirmed for ${booking.appointmentDate} at ${formatTimeForDisplay(booking.appointmentTime)}`,
+      });
+      router.push(`/bookings/${booking.id}`);
+    },
+    onError: (error) => {
+      toast.error('Failed to create booking', {
+        description: error.message || 'Please try again or contact support.',
+      });
+    },
+  });
+
+  const totalDuration = useMemo(
+    () => calculateTotalDuration(services, selectedServiceIds),
+    [services, selectedServiceIds]
+  );
+
+  const dateOptions = useMemo(
+    () => generateDateOptions(totalDuration, selectedDate),
+    [totalDuration, selectedDate]
+  );
+
+  // Only fetch slots when on datetime step
+  const {
+    data: slotsData,
+    isLoading: isLoadingSlots,
+    error: slotsError,
+  } = useAvailableSlots(
+    {
+      date: selectedDate || '',
+      serviceIds: selectedServiceIds,
+    },
+    step === 'datetime'
+  );
+
+  const timeSlots = useMemo(
+    () =>
+      slotsData?.slots ? formatTimeSlots(slotsData.slots, selectedDate) : [],
+    [slotsData, selectedDate]
+  );
+
+  const handleContinueToDateTime = () => {
+    if (selectedServiceIds.length > 0) {
+      if (!selectedDate) {
+        setSelectedDate(getDefaultDate());
+      }
+      setStep('datetime');
+    }
+  };
+
+  const handleBackToServices = () => {
+    setPaymentIntentData(null);
+    setStep('services');
+  };
+
+  const handleContinueToReview = () => {
+    setStep('review');
+  };
+
+  const handleBackToDateTime = () => {
+    setPaymentIntentData(null);
+    setStep('datetime');
+  };
+
+  const handleContinueToPayment = () => {
+    setStep('payment');
+  };
+
+  const handleBackToReview = () => {
+    setStep('review');
+  };
+
+  const handleConfirmBooking = () => {
+    if (!selectedDate || !selectedTime || !paymentMethod) {
+      toast.error('Missing information', {
+        description: 'Please complete all required fields',
+      });
+      return;
+    }
+
+    if (paymentMethod === 'CASH') {
+      // Cash flow: create booking immediately
+      return createBooking.mutate({
+        serviceIds: selectedServiceIds,
+        appointmentDate: selectedDate,
+        appointmentTime: selectedTime,
+        paymentMethod,
+      });
+    }
+
+    // Card flow: if we already have a payment intent, reuse it
+    if (paymentIntentData) {
+      setStep('stripe-payment');
+      return;
+    }
+
+    // Create payment intent first
+    createPaymentIntent.mutate({
+      serviceIds: selectedServiceIds,
+      appointmentDate: selectedDate,
+      appointmentTime: selectedTime,
+    });
+  };
+
+  const handleStripePaymentSuccess = () => {
+    if (!selectedDate || !selectedTime || !paymentIntentData) return;
+
+    // After successful Stripe payment, create the booking
+    createBooking.mutate({
+      serviceIds: selectedServiceIds,
+      appointmentDate: selectedDate,
+      appointmentTime: selectedTime,
+      paymentMethod: 'STRIPE',
+      stripePaymentIntentId: paymentIntentData.paymentIntentId,
+    });
+  };
+
+  const steps = [
+    { id: 'services', label: 'Services', number: 1 },
+    { id: 'datetime', label: 'Date & Time', number: 2 },
+    { id: 'review', label: 'Review', number: 3 },
+    { id: 'payment', label: 'Payment', number: 4 },
+  ] as const;
+
+  const getStepIndex = (stepId: string) =>
+    steps.findIndex((s) => s.id === stepId);
+
+  const currentStepIndex = getStepIndex(
+    step === 'stripe-payment' ? 'payment' : step
+  );
+
+  return (
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      {/* Progress Indicator */}
+      <div className="mb-4 rounded-xl bg-white p-4 shadow-xl sm:mb-6 sm:p-6">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-3">
+          {steps.map((stepItem, index) => {
+            const isActive =
+              step === stepItem.id ||
+              (step === 'stripe-payment' && stepItem.id === 'payment');
+            const isCompleted = index < currentStepIndex;
+
+            return (
+              <div key={stepItem.id} className="flex items-center">
+                <div className="flex items-center">
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all sm:h-10 sm:w-10 ${
+                      isActive
+                        ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30'
+                        : isCompleted
+                          ? 'bg-emerald-500 text-white'
+                          : 'border-2 border-gray-400 bg-white text-gray-600'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <svg
+                        className="h-4 w-4 sm:h-5 sm:w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    ) : (
+                      stepItem.number
+                    )}
+                  </div>
+                  <div className="ml-1.5 hidden sm:ml-2 sm:block">
+                    <p
+                      className={`text-xs font-medium ${isActive ? 'text-gray-900' : 'text-gray-600'}`}
+                    >
+                      {stepItem.label}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Divider - show after all steps except the last one */}
+                {index < steps.length - 1 && (
+                  <div
+                    className={`ml-1.5 h-0.5 w-6 transition-all sm:ml-3 sm:w-12 ${
+                      index < currentStepIndex
+                        ? 'bg-emerald-500'
+                        : 'bg-gray-400'
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Content Card */}
+      <div className="overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="p-6">
+          {step === 'services' && (
+            <ServiceStep
+              selectedServiceIds={selectedServiceIds}
+              onSelectionChange={setSelectedServiceIds}
+              onContinue={handleContinueToDateTime}
+            />
+          )}
+
+          {step === 'datetime' && (
+            <DateTimeStep
+              dateOptions={dateOptions}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              timeSlots={timeSlots}
+              selectedTime={selectedTime}
+              onSelectTime={setSelectedTime}
+              isLoadingSlots={isLoadingSlots}
+              slotsError={slotsError}
+              onBack={handleBackToServices}
+              onConfirm={handleContinueToReview}
+            />
+          )}
+
+          {step === 'review' && (
+            <ReviewStep
+              services={services || []}
+              selectedServiceIds={selectedServiceIds}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onEditServices={() => {
+                setPaymentIntentData(null);
+                setStep('services');
+              }}
+              onEditDateTime={() => {
+                setPaymentIntentData(null);
+                setStep('datetime');
+              }}
+              onBack={handleBackToDateTime}
+              onContinue={handleContinueToPayment}
+            />
+          )}
+
+          {step === 'payment' && (
+            <PaymentStep
+              paymentMethod={paymentMethod}
+              onSelectPayment={(method) => {
+                setPaymentMethod(method);
+                // Clear stale payment intent if user switches away from card
+                if (paymentIntentData && method !== 'STRIPE') {
+                  setPaymentIntentData(null);
+                }
+              }}
+              onBack={handleBackToReview}
+              onConfirm={handleConfirmBooking}
+              isLoading={
+                createBooking.isPending || createPaymentIntent.isPending
+              }
+            />
+          )}
+
+          {step === 'stripe-payment' && paymentIntentData && (
+            <StripeCheckout
+              clientSecret={paymentIntentData.clientSecret}
+              onSuccess={handleStripePaymentSuccess}
+              onCancel={() => {
+                setStep('payment');
+              }}
+            />
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
