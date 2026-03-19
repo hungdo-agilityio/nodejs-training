@@ -1,20 +1,39 @@
+# This workflow builds the server Docker image and pushes it to Docker Hub.
+# Railway is configured to deploy from the Docker Hub image automatically.
+#
+# Required GitHub Actions secrets:
+#   - DOCKERHUB_USERNAME: Docker Hub username
+#   - DOCKERHUB_TOKEN: Docker Hub access token
+
 name: API CD
 
 on:
   push:
     branches:
+      - dev
+      - staging
       - main
-
-env:
-  DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server
 
 permissions:
   contents: read
 
 jobs:
   deploy:
-    name: Build & Push Server Image
+    name: Build & Push Server Image (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - branch: dev
+            environment: development
+            tag: dev
+          - branch: staging
+            environment: staging
+            tag: staging
+          - branch: main
+            environment: production
+            tag: latest
+    if: github.ref_name == matrix.branch
 
     steps:
       - name: Checkout
@@ -32,5 +51,5 @@ jobs:
           context: ./server
           push: true
           tags: |
-            ${{ env.DOCKERHUB_REPO }}:${{ github.sha }}
-            ${{ env.DOCKERHUB_REPO }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server:${{ matrix.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server:${{ matrix.tag }}-${{ github.sha }}
