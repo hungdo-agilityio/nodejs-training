@@ -14,6 +14,10 @@ on:
       - staging
       - main
 
+  pull_request:
+    branches:
+      - dev
+
 permissions:
   contents: read
 
