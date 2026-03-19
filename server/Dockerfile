@@ -46,4 +46,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 
 ENTRYPOINT ["doppler", "run", "--preserve-env", "--"]
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "pnpm run migration:run && node dist/server.js"]
