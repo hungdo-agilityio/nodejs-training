@@ -26,6 +26,12 @@ FROM node:22-alpine AS production
 
 RUN npm install -g pnpm
 
+# Install Doppler CLI for runtime secret injection
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' \
+    -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub && \
+    echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' | \
+    tee -a /etc/apk/repositories && apk add doppler
+
 WORKDIR /app
 
 # Copy dependency files
@@ -37,9 +43,7 @@ RUN pnpm install --frozen-lockfile --prod
 # Copy compiled output from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Create data directory for SQLite database
-RUN mkdir -p data
-
 EXPOSE 3000
 
-CMD ["node", "--env-file=.env", "dist/server.js"]
+ENTRYPOINT ["doppler", "run", "--preserve-env", "--"]
+CMD ["node", "dist/server.js"]

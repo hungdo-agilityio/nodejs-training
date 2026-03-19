@@ -7,7 +7,7 @@ A full-stack salon booking application built with Express.js (backend) and Next.
 **Backend**
 
 - Express.js 5 + TypeScript
-- TypeORM + SQLite
+- TypeORM + PostgreSQL
 - Clerk (JWT authentication)
 - Stripe (payment authorization & capture)
 - Swagger UI (`/api/docs`)
@@ -25,7 +25,7 @@ A full-stack salon booking application built with Express.js (backend) and Next.
 
 - Node.js 18+
 - pnpm 10+
-- Docker & Docker Compose (optional, for containerized runs)
+- Docker & Docker Compose (required for PostgreSQL, optional for full-stack runs)
 
 ## Getting Started
 
@@ -75,16 +75,16 @@ The app will be available at `http://localhost:3001`.
 
 ### Backend (`server/.env`)
 
-| Variable                       | Required | Description                                                      |
-| ------------------------------ | -------- | ---------------------------------------------------------------- |
-| `NODE_ENV`                     | Yes      | `development` or `production`                                    |
-| `PORT`                         | Yes      | Server port (default: `3000`)                                    |
-| `DATABASE_PATH`                | Yes      | SQLite file path (e.g. `./data/salon_booking.db`)                |
-| `CLERK_PUBLISHABLE_KEY`        | Yes      | Clerk publishable key (from Clerk dashboard)                     |
-| `CLERK_SECRET_KEY`             | Yes      | Clerk secret key (from Clerk dashboard)                          |
-| `CLERK_WEBHOOK_SIGNING_SECRET` | Yes      | Clerk webhook signing secret (from Clerk dashboard → Webhooks)   |
-| `STRIPE_SECRET_KEY`            | Yes      | Stripe secret key (from Stripe dashboard)                        |
-| `STRIPE_WEBHOOK_SECRET`        | Yes      | Stripe webhook signing secret (from Stripe dashboard → Webhooks) |
+| Variable                       | Required | Description                                                                                  |
+| ------------------------------ | -------- | -------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                     | Yes      | `development` or `production`                                                                |
+| `PORT`                         | Yes      | Server port (default: `3000`)                                                                |
+| `DATABASE_URL`                 | Yes      | PostgreSQL connection URL (e.g. `postgres://postgres:postgres@localhost:5432/salon_booking`) |
+| `CLERK_PUBLISHABLE_KEY`        | Yes      | Clerk publishable key (from Clerk dashboard)                                                 |
+| `CLERK_SECRET_KEY`             | Yes      | Clerk secret key (from Clerk dashboard)                                                      |
+| `CLERK_WEBHOOK_SIGNING_SECRET` | Yes      | Clerk webhook signing secret (from Clerk dashboard → Webhooks)                               |
+| `STRIPE_SECRET_KEY`            | Yes      | Stripe secret key (from Stripe dashboard)                                                    |
+| `STRIPE_WEBHOOK_SECRET`        | Yes      | Stripe webhook signing secret (from Stripe dashboard → Webhooks)                             |
 
 ### Frontend (`client/.env`)
 
@@ -96,9 +96,58 @@ The app will be available at `http://localhost:3001`.
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes      | Stripe publishable key                             |
 | `STRIPE_SECRET_KEY`                  | Yes      | Stripe secret key                                  |
 
+## Secret Management with Doppler
+
+This project uses [Doppler](https://www.doppler.com/) to manage secrets. No `.env` files are needed.
+
+### 1. Install Doppler CLI
+
+Follow the official installation guide: https://docs.doppler.com/docs/install-cli
+
+### 2. Configure with a Persisted Service Token
+
+Generate a service token from the Doppler dashboard for the target environment (e.g. `dev`, `staging`, `production`), then register it scoped to your project directory:
+
+```bash
+# Prevent configure command being leaked in bash history
+export HISTIGNORE='doppler*'
+
+# Scope to location of application directory
+echo 'dp.st.prd.xxxx' | doppler configure set token --scope /path/to/nodejs-training
+```
+
+This persists across machine restarts and restricts which directory secrets can be fetched from.
+
+### 3. Run with Doppler
+
+Doppler injects all environment variables at runtime:
+
+```bash
+# Backend
+cd server
+doppler run -- pnpm run dev        # development
+doppler run -- pnpm run start      # production
+
+# Migrations & seeds
+doppler run -- pnpm run migration:run
+doppler run -- pnpm run seed
+
+# Frontend
+cd client
+doppler run -- pnpm run dev
+```
+
+> **Note:** The `dotenv` library in the server will silently skip loading if no `.env` file is present. When using Doppler, you don't need `.env` files at all.
+
 ## Database Setup
 
-The backend uses SQLite. The database file is auto-created at the path set in `DATABASE_PATH`.
+The backend uses PostgreSQL. Start the database via Docker Compose:
+
+```bash
+docker compose up -d postgres
+```
+
+This starts PostgreSQL at `localhost:5432` with default credentials matching the `DATABASE_URL` fallback.
 
 **Run migrations** (creates all tables):
 
@@ -149,47 +198,50 @@ cd client && pnpm run build && pnpm run start
 
 ### Docker (Full Stack)
 
-#### 1. Set up environment files
+Each container runs the Doppler CLI internally to fetch its own secrets.
 
-```bash
-cp server/.env.example server/.env
-cp client/.env.example client/.env
-```
-
-Fill in both `.env` files with your Clerk and Stripe keys.
-
-#### 2. Add ngrok auth token
+#### 1. Set up environment
 
 Create a root `.env` file for Docker Compose:
 
 ```bash
 # .env (root)
-NGROK_AUTHTOKEN=your_ngrok_token_here
+DOPPLER_TOKEN_SERVER=dp.st.dev.xxxx    # Server service token from Doppler dashboard
+DOPPLER_TOKEN_CLIENT=dp.st.dev.yyyy    # Client service token from Doppler dashboard
+NGROK_AUTHTOKEN=your_ngrok_token       # From ngrok dashboard
 ```
 
-Get your token at https://dashboard.ngrok.com/get-started/your-authtoken
-
-#### 3. Run
+#### 2. Run
 
 ```bash
 docker compose up --build
 ```
 
-| Service | URL | Description |
-| ------- | --- | ----------- |
-| Frontend | http://localhost:3001 | Next.js UI |
-| Backend API | http://localhost:3000 | Express API |
-| Swagger docs | http://localhost:3000/api/docs | API docs |
-| ngrok inspector | http://localhost:4040 | Tunnel URL for webhooks |
+The Compose stack includes a PostgreSQL container. The server's `DATABASE_URL` is automatically set to the Compose postgres service. All other secrets are fetched by Doppler inside each container. The client token is also used at build time to inline `NEXT_PUBLIC_*` vars. Data is persisted in the `pgdata` Docker volume.
+
+| Service         | URL                            | Description             |
+| --------------- | ------------------------------ | ----------------------- |
+| Frontend        | http://localhost:3001          | Next.js UI              |
+| Backend API     | http://localhost:3000          | Express API             |
+| Swagger docs    | http://localhost:3000/api/docs | API docs                |
+| ngrok inspector | http://localhost:4040          | Tunnel URL for webhooks |
 
 Use the tunnel URL from http://localhost:4040 for your Clerk and Stripe webhook configs.
 
-> **Note:** SQLite data is persisted in a Docker volume (`salon_data`) across container restarts.
+### Running E2E Tests
+
+E2E tests use a separate PostgreSQL instance on port 5433 (via the `test` profile):
+
+```bash
+docker compose --profile test up -d postgres-test
+cd server
+doppler run -- pnpm run test:e2e:run
+```
 
 ### Other Commands
 
 ```bash
-# Run tests
+# Run unit tests
 cd server && pnpm run test
 cd server && pnpm run test:coverage
 
@@ -278,7 +330,7 @@ Payment failure (via webhook):
 ```
 nodejs-training/
 ├── docker-compose.yml          # Full-stack Docker setup (server + client + ngrok)
-├── .env                        # Root env (NGROK_AUTHTOKEN only)
+├── .env                        # Root env (Doppler tokens only)
 ├── server/                     # Express.js backend
 │   ├── Dockerfile              # Multi-stage Docker build
 │   ├── .dockerignore

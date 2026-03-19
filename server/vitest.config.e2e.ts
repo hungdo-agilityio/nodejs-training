@@ -25,17 +25,14 @@ export default defineConfig({
     hookTimeout: 30_000,
     env: {
       NODE_ENV: 'test',
-      // Use in-memory SQLite — every test run starts with a clean schema
-      DATABASE_PATH: ':memory:',
-      // Forward keys loaded from .env.test into the worker process
-      CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? '',
-      CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY ?? '',
-      CLERK_WEBHOOK_SIGNING_SECRET:
-        process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? '',
-      CLERK_TEST_SESSION_TOKEN: process.env.CLERK_TEST_SESSION_TOKEN ?? '',
-      CLERK_TEST_USER_ID: process.env.CLERK_TEST_USER_ID ?? '',
-      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
-      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+      DATABASE_URL: process.env.DATABASE_URL,
+      CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY,
+      CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+      CLERK_WEBHOOK_SIGNING_SECRET: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
+      CLERK_TEST_SESSION_TOKEN: process.env.CLERK_TEST_SESSION_TOKEN,
+      CLERK_TEST_USER_ID: process.env.CLERK_TEST_USER_ID,
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     },
   },
 });
