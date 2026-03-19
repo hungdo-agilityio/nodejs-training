@@ -96,6 +96,49 @@ The app will be available at `http://localhost:3001`.
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes      | Stripe publishable key                             |
 | `STRIPE_SECRET_KEY`                  | Yes      | Stripe secret key                                  |
 
+## Secret Management with Doppler
+
+This project uses [Doppler](https://www.doppler.com/) to manage secrets. No `.env` files are needed.
+
+### 1. Install Doppler CLI
+
+Follow the official installation guide: https://docs.doppler.com/docs/install-cli
+
+### 2. Configure with a Persisted Service Token
+
+Generate a service token from the Doppler dashboard for the target environment (e.g. `dev`, `staging`, `production`), then register it scoped to your project directory:
+
+```bash
+# Prevent configure command being leaked in bash history
+export HISTIGNORE='doppler*'
+
+# Scope to location of application directory
+echo 'dp.st.prd.xxxx' | doppler configure set token --scope /path/to/nodejs-training
+```
+
+This persists across machine restarts and restricts which directory secrets can be fetched from.
+
+### 3. Run with Doppler
+
+Doppler injects all environment variables at runtime:
+
+```bash
+# Backend
+cd server
+doppler run -- pnpm run dev        # development
+doppler run -- pnpm run start      # production
+
+# Migrations & seeds
+doppler run -- pnpm run migration:run
+doppler run -- pnpm run seed
+
+# Frontend
+cd client
+doppler run -- pnpm run dev
+```
+
+> **Note:** The `dotenv` library in the server will silently skip loading if no `.env` file is present. When using Doppler, you don't need `.env` files at all.
+
 ## Database Setup
 
 The backend uses SQLite. The database file is auto-created at the path set in `DATABASE_PATH`.
@@ -175,12 +218,12 @@ Get your token at https://dashboard.ngrok.com/get-started/your-authtoken
 docker compose up --build
 ```
 
-| Service | URL | Description |
-| ------- | --- | ----------- |
-| Frontend | http://localhost:3001 | Next.js UI |
-| Backend API | http://localhost:3000 | Express API |
-| Swagger docs | http://localhost:3000/api/docs | API docs |
-| ngrok inspector | http://localhost:4040 | Tunnel URL for webhooks |
+| Service         | URL                            | Description             |
+| --------------- | ------------------------------ | ----------------------- |
+| Frontend        | http://localhost:3001          | Next.js UI              |
+| Backend API     | http://localhost:3000          | Express API             |
+| Swagger docs    | http://localhost:3000/api/docs | API docs                |
+| ngrok inspector | http://localhost:4040          | Tunnel URL for webhooks |
 
 Use the tunnel URL from http://localhost:4040 for your Clerk and Stripe webhook configs.
 

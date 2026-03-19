@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-
-const DATABASE_PATH = process.env.DATABASE_PATH || './data/salon_booking.db';
+import { DATABASE_PATH } from '../constants';
 
 // eslint-disable-next-line no-undef
 const isCompiled = __dirname.includes('dist');
