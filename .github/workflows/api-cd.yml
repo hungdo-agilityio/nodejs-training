@@ -23,25 +23,24 @@ permissions:
 
 jobs:
   deploy:
-    name: Build & Push Server Image (${{ matrix.environment }})
+    name: Build & Push Server Image
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - branch: dev
-            environment: development
-            tag: dev
-          - branch: staging
-            environment: staging
-            tag: staging
-          - branch: main
-            environment: production
-            tag: latest
-    if: github.ref_name == matrix.branch
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set environment-specific tag
+        id: vars
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          if [[ "$BRANCH" == "dev" ]]; then
+            echo "tag=dev" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == "staging" ]]; then
+            echo "tag=staging" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == "main" ]]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -55,5 +54,5 @@ jobs:
           context: ./server
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server:${{ matrix.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server:${{ matrix.tag }}-${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server:${{ steps.vars.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/salon-booking-server:${{ steps.vars.outputs.tag }}-${{ github.sha }}
