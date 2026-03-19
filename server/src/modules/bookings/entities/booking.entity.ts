@@ -24,7 +24,7 @@ export class Booking extends BaseEntity {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'appointment_datetime', type: 'datetime' })
+  @Column({ name: 'appointment_datetime', type: 'timestamp' })
   appointmentDatetime: Date;
 
   @Column({ name: 'appointment_date', type: 'date' })
@@ -74,13 +74,13 @@ export class Booking extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  @Column({ name: 'checked_in_at', type: 'datetime', nullable: true })
+  @Column({ name: 'checked_in_at', type: 'timestamp', nullable: true })
   checkedInAt: Date | null;
 
-  @Column({ name: 'completed_at', type: 'datetime', nullable: true })
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
   completedAt: Date | null;
 
-  @Column({ name: 'cancelled_at', type: 'datetime', nullable: true })
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
   cancelledAt: Date | null;
 
   @OneToMany(() => BookingService, (bookingService) => bookingService.booking)

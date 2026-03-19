@@ -1,21 +1,48 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: salon_booking
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  postgres-test:
+    image: postgres:17-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: salon_booking_test
+    profiles:
+      - test
+
   server:
     build:
       context: ./server
     ports:
       - "3000:3000"
-    volumes:
-      - ./server/.env:/app/.env:ro
-      - salon_data:/app/data
+    environment:
+      DOPPLER_TOKEN: ${DOPPLER_TOKEN_SERVER}
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/salon_booking
+    depends_on:
+      - postgres
     restart: unless-stopped
 
   client:
     build:
       context: ./client
+      args:
+        DOPPLER_TOKEN: ${DOPPLER_TOKEN_CLIENT}
     ports:
       - "3001:3000"
-    env_file:
-      - ./client/.env
+    environment:
+      DOPPLER_TOKEN: ${DOPPLER_TOKEN_CLIENT}
     depends_on:
       - server
     restart: unless-stopped
@@ -26,10 +53,10 @@ services:
     ports:
       - "4040:4040"
     environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     depends_on:
       - server
     restart: unless-stopped
 
 volumes:
-  salon_data:
+  pgdata:

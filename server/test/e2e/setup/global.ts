@@ -78,9 +78,10 @@ beforeAll(async () => {
   dsOpts.entities = entities;
   dsOpts.migrations = []; // not needed — synchronize:true recreates schema
   dsOpts.synchronize = true;
+  dsOpts.dropSchema = true; // wipe all tables so every run starts clean
 
   if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize(); // synchronize:true creates all tables here
+    await AppDataSource.initialize(); // dropSchema + synchronize recreates all tables
   }
 
   await seedTestData(AppDataSource);
