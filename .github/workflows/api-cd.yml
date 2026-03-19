@@ -35,7 +35,7 @@ jobs:
         run: |
           BRANCH="${GITHUB_REF##*/}"
           if [[ "$BRANCH" == "dev" ]]; then
-            echo "environment=Development" >> $GITHUB_OUTPUT
+            echo "environment=Production" >> $GITHUB_OUTPUT
             echo "tag=dev" >> $GITHUB_OUTPUT
           elif [[ "$BRANCH" == "staging" ]]; then
             echo "environment=Staging" >> $GITHUB_OUTPUT
