@@ -1,10 +1,11 @@
-# This workflow builds the server Docker image and pushes it to Docker Hub.
-# Railway is configured to deploy from the Docker Hub image automatically.
+# This workflow builds the server Docker image, pushes it to Docker Hub,
+# and deploys to Railway.
 #
 # Required GitHub Environments: Development, Staging, Production
 # Each environment should have these secrets:
 #   - DOCKERHUB_USERNAME: Docker Hub username
 #   - DOCKERHUB_TOKEN: Docker Hub access token
+#   - RAILWAY_TOKEN: Railway service token for the target environment
 
 name: API CD
 
@@ -34,7 +35,7 @@ jobs:
         run: |
           BRANCH="${GITHUB_REF##*/}"
           if [[ "$BRANCH" == "dev" ]]; then
-            echo "environment=Production" >> $GITHUB_OUTPUT
+            echo "environment=Development" >> $GITHUB_OUTPUT
             echo "tag=dev" >> $GITHUB_OUTPUT
           elif [[ "$BRANCH" == "staging" ]]; then
             echo "environment=Staging" >> $GITHUB_OUTPUT
