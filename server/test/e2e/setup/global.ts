@@ -24,10 +24,12 @@ import { beforeAll } from 'vitest';
 import supertest from 'supertest';
 import type { Application } from 'express';
 import type { EntitySchema, MixedList } from 'typeorm';
+import { PaymentService } from '../../../src/modules/payments';
 
 // ── Auto-discover every entity through vite-node's transform pipeline ─────────
 // When a new entity file is added under src/modules/**/entities/, it is picked
 // up here automatically — no manual list to maintain.
+// @ts-expect-error - glob imports are typed as Record<string, unknown>
 const entityModules = import.meta.glob(
   '../../../src/modules/**/entities/*.ts',
   { eager: true }
@@ -66,7 +68,7 @@ beforeAll(async () => {
   const { BookingBusinessService, BookingController, BookingRepository } =
     await import('../../../src/modules/bookings');
   const { ClerkWebhookHandler } = await import('../../../src/modules/auth');
-  const { StripeService, PaymentController, WebhookController } =
+  const { PaymentController, WebhookController } =
     await import('../../../src/modules/payments');
   const Stripe = (await import('stripe')).default;
   const { STRIPE_SECRET_KEY } = await import('../../../src/shared/constants');
@@ -77,14 +79,16 @@ beforeAll(async () => {
   const dsOpts = (AppDataSource as any).options;
   dsOpts.entities = entities;
   dsOpts.migrations = []; // not needed — synchronize:true recreates schema
-  dsOpts.synchronize = true;
-  dsOpts.dropSchema = true; // wipe all tables so every run starts clean
+  dsOpts.synchronize = false;
+  dsOpts.dropSchema = false;
 
   if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize(); // dropSchema + synchronize recreates all tables
+    await AppDataSource.initialize();
+    await AppDataSource.query('DROP SCHEMA public CASCADE');
+    await AppDataSource.query('CREATE SCHEMA public');
+    await AppDataSource.synchronize();
+    await seedTestData(AppDataSource);
   }
-
-  await seedTestData(AppDataSource);
 
   // ── Wire dependencies (mirrors bootstrap.ts) ───────────────────────────────
   const logger = new ConsoleLogger();
@@ -108,7 +112,7 @@ beforeAll(async () => {
   const stripe = new Stripe(stripeKey, {
     apiVersion: '2026-01-28.clover',
   });
-  const stripeService = new StripeService(stripe, logger);
+  const stripeService = new PaymentService(stripe, logger);
 
   const bookingBusinessService = new BookingBusinessService(
     bookingRepository,

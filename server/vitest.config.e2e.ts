@@ -21,11 +21,7 @@ export default defineConfig({
     // Share module instances across test files so AppDataSource is a true singleton
     isolate: false,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 30_000,
     env: {
