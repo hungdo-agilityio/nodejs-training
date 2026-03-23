@@ -85,6 +85,7 @@ beforeAll(async () => {
     await AppDataSource.initialize();
     await AppDataSource.query('DROP SCHEMA public CASCADE');
     await AppDataSource.query('CREATE SCHEMA public');
+    await AppDataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
     await AppDataSource.synchronize();
     await seedTestData(AppDataSource);
   }
