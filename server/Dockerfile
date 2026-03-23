@@ -46,4 +46,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 
 ENTRYPOINT ["doppler", "run", "--preserve-env", "--"]
-CMD ["sh", "-c", "pnpm run migration:run && node dist/server.js"]
+CMD ["sh", "-c", "npx typeorm migration:run -d dist/shared/database/data-source.js && node dist/server.js"]

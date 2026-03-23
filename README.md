@@ -214,7 +214,7 @@ NGROK_AUTHTOKEN=your_ngrok_token       # From ngrok dashboard
 #### 2. Run
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
 
 The Compose stack includes a PostgreSQL container. The server's `DATABASE_URL` is automatically set to the Compose postgres service. All other secrets are fetched by Doppler inside each container. The client token is also used at build time to inline `NEXT_PUBLIC_*` vars. Data is persisted in the `pgdata` Docker volume.
@@ -230,10 +230,10 @@ Use the tunnel URL from http://localhost:4040 for your Clerk and Stripe webhook 
 
 ### Running E2E Tests
 
-E2E tests use a separate PostgreSQL instance on port 5433 (via the `test` profile):
+E2E tests use a separate PostgreSQL instance on port 5433:
 
 ```bash
-docker compose --profile test up -d postgres-test
+docker compose -f docker-compose.test.yml up -d
 cd server
 doppler run -- pnpm run test:e2e:run
 ```
@@ -329,7 +329,9 @@ Payment failure (via webhook):
 
 ```
 nodejs-training/
-├── docker-compose.yml          # Full-stack Docker setup (server + client + ngrok)
+├── docker-compose.yml          # Base server image
+├── docker-compose.local.yml    # Local dev (postgres + client + ngrok)
+├── docker-compose.test.yml     # Test database (postgres on port 5433)
 ├── .env                        # Root env (Doppler tokens only)
 ├── server/                     # Express.js backend
 │   ├── Dockerfile              # Multi-stage Docker build
