@@ -66,7 +66,7 @@ beforeAll(async () => {
   const { BookingBusinessService, BookingController, BookingRepository } =
     await import('../../../src/modules/bookings');
   const { ClerkWebhookHandler } = await import('../../../src/modules/auth');
-  const { StripeService, PaymentController, WebhookController } =
+  const { PaymentService, PaymentController, WebhookController } =
     await import('../../../src/modules/payments');
   const Stripe = (await import('stripe')).default;
   const { STRIPE_SECRET_KEY } = await import('../../../src/shared/constants');
@@ -82,9 +82,8 @@ beforeAll(async () => {
 
   if (!AppDataSource.isInitialized) {
     await AppDataSource.initialize(); // dropSchema + synchronize recreates all tables
+    await seedTestData(AppDataSource);
   }
-
-  await seedTestData(AppDataSource);
 
   // ── Wire dependencies (mirrors bootstrap.ts) ───────────────────────────────
   const logger = new ConsoleLogger();
@@ -108,7 +107,7 @@ beforeAll(async () => {
   const stripe = new Stripe(stripeKey, {
     apiVersion: '2026-01-28.clover',
   });
-  const stripeService = new StripeService(stripe, logger);
+  const stripeService = new PaymentService(stripe, logger);
 
   const bookingBusinessService = new BookingBusinessService(
     bookingRepository,
