@@ -68,7 +68,7 @@ beforeAll(async () => {
   const { BookingBusinessService, BookingController, BookingRepository } =
     await import('../../../src/modules/bookings');
   const { ClerkWebhookHandler } = await import('../../../src/modules/auth');
-  const { PaymentController, WebhookController } =
+  const { PaymentService, PaymentController, WebhookController } =
     await import('../../../src/modules/payments');
   const Stripe = (await import('stripe')).default;
   const { STRIPE_SECRET_KEY } = await import('../../../src/shared/constants');

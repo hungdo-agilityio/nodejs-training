@@ -60,6 +60,59 @@ jobs:
       - name: Test
         run: pnpm test --run
 
+  server-e2e:
+    name: Server E2E
+    runs-on: ubuntu-latest
+    environment: Development
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-server-${{ hashFiles('server/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-server-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start test database
+        run: docker compose -f ../docker-compose.test.yml up -d --wait
+
+      - name: Run E2E tests
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_E2E }}
+          DATABASE_URL: postgres://postgres:postgres@localhost:5433/salon_booking_test
+        run: doppler run --preserve-env -- pnpm test:e2e:run
+
+      - name: Stop test database
+        if: always()
+        run: docker compose -f ../docker-compose.test.yml down
+
   client-ci:
     name: Client CI
     runs-on: ubuntu-latest
