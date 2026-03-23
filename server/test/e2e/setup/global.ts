@@ -24,7 +24,6 @@ import { beforeAll } from 'vitest';
 import supertest from 'supertest';
 import type { Application } from 'express';
 import type { EntitySchema, MixedList } from 'typeorm';
-import { PaymentService } from '../../../src/modules/payments';
 
 // ── Auto-discover every entity through vite-node's transform pipeline ─────────
 // When a new entity file is added under src/modules/**/entities/, it is picked
