@@ -28,6 +28,7 @@ import type { EntitySchema, MixedList } from 'typeorm';
 // ── Auto-discover every entity through vite-node's transform pipeline ─────────
 // When a new entity file is added under src/modules/**/entities/, it is picked
 // up here automatically — no manual list to maintain.
+// @ts-expect-error - glob imports are typed as Record<string, unknown>
 const entityModules = import.meta.glob(
   '../../../src/modules/**/entities/*.ts',
   { eager: true }
@@ -77,11 +78,15 @@ beforeAll(async () => {
   const dsOpts = (AppDataSource as any).options;
   dsOpts.entities = entities;
   dsOpts.migrations = []; // not needed — synchronize:true recreates schema
-  dsOpts.synchronize = true;
-  dsOpts.dropSchema = true; // wipe all tables so every run starts clean
+  dsOpts.synchronize = false;
+  dsOpts.dropSchema = false;
 
   if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize(); // dropSchema + synchronize recreates all tables
+    await AppDataSource.initialize();
+    await AppDataSource.query('DROP SCHEMA public CASCADE');
+    await AppDataSource.query('CREATE SCHEMA public');
+    await AppDataSource.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    await AppDataSource.synchronize();
     await seedTestData(AppDataSource);
   }
 
