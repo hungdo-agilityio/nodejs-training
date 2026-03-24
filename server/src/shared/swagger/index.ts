@@ -1,5 +1,14 @@
+/* eslint-disable no-undef */
 import swaggerJsdoc from 'swagger-jsdoc';
-import { PORT } from '@shared/constants';
+import path from 'path';
+import { BASE_URL, NODE_ENV, PORT } from '@shared/constants';
+
+const serverUrl = BASE_URL || `http://localhost:${PORT}/api`;
+
+const isCompiled = __filename.endsWith('.js');
+const apisGlob = isCompiled
+  ? [path.join(__dirname, '../../**/*.js')]
+  : ['./src/**/*.ts'];
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -11,8 +20,11 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: `http://localhost:${PORT}/api`,
-        description: 'Development server',
+        url: serverUrl,
+        description:
+          NODE_ENV === 'production'
+            ? 'Production server'
+            : 'Development server',
       },
     ],
     components: {
@@ -25,7 +37,7 @@ const options: swaggerJsdoc.Options = {
       },
     },
   },
-  apis: ['./src/**/*.ts'],
+  apis: apisGlob,
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

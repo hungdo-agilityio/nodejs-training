@@ -8,7 +8,6 @@ import {
   createErrorHandler,
   createLoadUser,
 } from '@shared/middleware';
-import { NODE_ENV } from '@shared/constants';
 import { swaggerSpec } from '@shared/swagger';
 import { IClerkWebhookHandler, createClerkWebhookRoutes } from '@modules/auth';
 import { IUserController, IUserService } from '@modules/users';
@@ -54,10 +53,8 @@ export const createApp = (
   app.use(express.urlencoded({ extended: true }));
   app.use(clerkAuth);
 
-  // Swagger documentation (non-production only)
-  if (NODE_ENV !== 'production') {
-    app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  }
+  // Swagger documentation
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // API Routes
   app.use(
